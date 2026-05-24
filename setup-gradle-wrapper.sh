@@ -17,13 +17,32 @@
 #     https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar
 
 set -e
+
+download_wrapper() {
+  url="https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar"
+  dest="gradle/wrapper/gradle-wrapper.jar"
+  mkdir -p "$(dirname "$dest")"
+  if command -v curl >/dev/null 2>&1; then
+    curl -L -o "$dest" "$url"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$dest" "$url"
+  else
+    return 1
+  fi
+}
+
 if command -v gradle >/dev/null 2>&1; then
   echo "检测到 gradle,正在生成 wrapper(8.9)..."
   gradle wrapper --gradle-version 8.9
   echo "完成:gradle/wrapper/gradle-wrapper.jar 已生成。"
 else
-  echo "未检测到 gradle 命令。"
-  echo "请改用方式 B(Android Studio 打开工程会自动补全),"
-  echo "或先安装 gradle 后重跑本脚本。"
-  exit 1
+  echo "未检测到 gradle 命令,尝试下载官方 gradle-wrapper.jar..."
+  if download_wrapper; then
+    echo "完成:gradle/wrapper/gradle-wrapper.jar 已下载。"
+  else
+    echo "未安装 gradle 且无法下载 jar。"
+    echo "请改用方式 B(Android Studio 打开本工程会自动补全),"
+    echo "或先安装 gradle / curl / wget 后重跑本脚本。"
+    exit 1
+  fi
 fi

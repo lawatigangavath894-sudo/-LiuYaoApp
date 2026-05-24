@@ -18,8 +18,7 @@ Kotlin + Jetpack Compose + Material 3 + MVVM。iOS 风视觉(Large Title / Group
 1. **用 Android Studio 打开本目录** → 它会自动补全 wrapper jar(最省事,推荐)。
 2. 已装 gradle:在工程根目录运行 `gradle wrapper --gradle-version 8.9`
    或执行 `sh setup-gradle-wrapper.sh`。
-3. 联网手动下载:
-   `curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar`
+3. 未安装 gradle 但可联网:执行 `sh setup-gradle-wrapper.sh`，脚本会自动下载官方 jar。
 
 补好后:
 - Android Studio:选 `app` → Run ▶(API 26+ 模拟器/真机)。
