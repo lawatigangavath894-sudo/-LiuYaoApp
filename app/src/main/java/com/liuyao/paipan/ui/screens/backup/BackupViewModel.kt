@@ -11,6 +11,7 @@ import com.liuyao.paipan.data.backup.ImportMode
 import com.liuyao.paipan.data.backup.ImportPreview
 import com.liuyao.paipan.data.db.AppDatabase
 import com.liuyao.paipan.data.db.LiuYaoRepository
+import com.liuyao.paipan.domain.imports.ImportedTextReader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,15 +29,12 @@ data class BackupUiState(
 )
 
 class BackupViewModel(app: Application) : AndroidViewModel(app) {
-
     private val repo = LiuYaoRepository(AppDatabase.get(app))
     private val exporter = ExportManager(repo)
     private val importer = ImportManager(repo)
 
     private val _ui = MutableStateFlow(BackupUiState())
     val ui: StateFlow<BackupUiState> = _ui.asStateFlow()
-
-    // ─────────── 导出预览 ───────────
 
     fun previewRules() = viewModelScope.launch {
         _ui.update { it.copy(busy = true, message = null) }
@@ -64,7 +62,6 @@ class BackupViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearPreview() = _ui.update { it.copy(preview = null) }
 
-    /** 把当前预览内容写入用户选择的 Uri(SAF) */
     fun writeToUri(uri: Uri, content: String) = viewModelScope.launch {
         try {
             withContext(Dispatchers.IO) {
@@ -74,23 +71,25 @@ class BackupViewModel(app: Application) : AndroidViewModel(app) {
             }
             _ui.update { it.copy(message = "导出成功") }
         } catch (e: Exception) {
-            _ui.update { it.copy(message = "导出失败:${e.message}") }
+            _ui.update { it.copy(message = "导出失败：${e.message}") }
         }
     }
-
-    // ─────────── 导入 ───────────
 
     fun loadImportFile(uri: Uri) = viewModelScope.launch {
         _ui.update { it.copy(busy = true, message = null) }
         try {
             val text = withContext(Dispatchers.IO) {
-                getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                val bytes = getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     ?: throw IllegalStateException("无法打开文件")
+                when (val outcome = ImportedTextReader.read(bytes)) {
+                    is ImportedTextReader.ReadOutcome.Success -> outcome.result.text
+                    is ImportedTextReader.ReadOutcome.Failure -> throw IllegalStateException(outcome.message)
+                }
             }
             val p = importer.preview(text)
             _ui.update { it.copy(importJsonText = text, importPreview = p, busy = false) }
         } catch (e: Exception) {
-            _ui.update { it.copy(busy = false, message = "读取失败:${e.message}") }
+            _ui.update { it.copy(busy = false, message = "读取失败：${e.message}") }
         }
     }
 
@@ -107,7 +106,7 @@ class BackupViewModel(app: Application) : AndroidViewModel(app) {
             _ui.update { it.copy(busy = false, message = "已恢复 $n 条") }
             onDone()
         } catch (e: Exception) {
-            _ui.update { it.copy(busy = false, message = "恢复失败:${e.message}") }
+            _ui.update { it.copy(busy = false, message = "恢复失败：${e.message}") }
         }
     }
 

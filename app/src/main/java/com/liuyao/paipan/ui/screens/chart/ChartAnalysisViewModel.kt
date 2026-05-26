@@ -8,6 +8,7 @@ import com.liuyao.paipan.data.db.LiuYaoRepository
 import com.liuyao.paipan.data.knowledge.LiuYaoKnowledgeSearchService
 import com.liuyao.paipan.domain.analysis.AnalysisLock
 import com.liuyao.paipan.domain.analysis.AnalysisLockResolver
+import com.liuyao.paipan.domain.analysis.QuestionFocusResolver
 import com.liuyao.paipan.domain.match.MatchReport
 import com.liuyao.paipan.domain.match.RuleMatcher
 import com.liuyao.paipan.domain.model.DivinationCategory
@@ -18,10 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * 断语分析状态:对当前卦跑匹配器,产出三分类 [MatchReport];
- * 并维护"收藏到批注"的规则 id 集合(本轮轻量内存态,不写案例反馈)。
- */
 data class AnalysisUiState(
     val report: MatchReport? = null,
     val analysisLock: AnalysisLock? = null,
@@ -31,7 +28,6 @@ data class AnalysisUiState(
 )
 
 class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
-
     private val repo = LiuYaoRepository(AppDatabase.get(app))
     private val knowledgeSearch = LiuYaoKnowledgeSearchService(app.applicationContext)
 
@@ -40,23 +36,19 @@ class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
 
     private var analyzedFor: String? = null
 
-    /**
-     * 对给定卦与占类分析。重复同一卦不重算。
-     * 规则来自 Room;库为空时回退到示例结果以便预览。
-     */
     fun analyze(chart: LiuYaoChart, category: DivinationCategory) {
         if (analyzedFor == chart.id && _ui.value.report != null) return
         analyzedFor = chart.id
-        _ui.update { it.copy(isLoading = true) }
+        _ui.update { it.copy(isLoading = true, knowledgeMessage = null) }
         viewModelScope.launch {
             val rules = repo.loadAllRules()
-            val mainVariable = com.liuyao.paipan.domain.analysis.QuestionFocusResolver.resolve(chart.question)
+            val mainVariable = QuestionFocusResolver.resolve(chart.question)
             val snippets = knowledgeSearch.searchRelevantSnippets(
                 category = category,
                 question = chart.question,
                 chart = chart,
                 rules = rules,
-                extraKeywords = com.liuyao.paipan.domain.analysis.QuestionFocusResolver.resultKeywords(mainVariable),
+                extraKeywords = QuestionFocusResolver.resultKeywords(mainVariable),
                 limit = 10,
             )
             val lock = AnalysisLockResolver.resolve(chart, category, snippets)
@@ -64,17 +56,16 @@ class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
                 MatchReport(emptyList(), emptyList(), emptyList())
             } else {
                 val relMap = repo.reliabilityMap()
-                val r = RuleMatcher.match(
+                val matched = RuleMatcher.match(
                     chart = chart,
                     category = category,
                     rules = rules,
                     reliabilityProvider = { ruleId -> relMap[ruleId] ?: 1.0 },
                     lock = lock,
                 )
-                // 记录命中规则"被使用一次"(供使用次数/最近使用时间统计)
                 val now = System.currentTimeMillis() / 1000
-                r.all.forEach { repo.markRuleUsed(it.rule.id, now) }
-                r
+                matched.all.forEach { repo.markRuleUsed(it.rule.id, now) }
+                matched
             }
             _ui.update {
                 it.copy(
@@ -91,7 +82,6 @@ class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** 收藏 / 取消收藏某断语到批注(内存态) */
     fun toggleFavorite(ruleId: String) {
         _ui.update {
             val cur = it.favoriteRuleIds

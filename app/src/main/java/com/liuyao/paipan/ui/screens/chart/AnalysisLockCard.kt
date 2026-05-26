@@ -44,10 +44,21 @@ fun AnalysisLockCard(lock: AnalysisLock?, message: String?) {
                 LockRow("世爻", lock.worldLineIndex?.toString() ?: "未定")
                 LockRow("应爻", lock.responseLineIndex?.toString() ?: "未定")
                 LockRow("关键爻", lock.keyLineIndexes.joinToString("、").ifBlank { "未定" })
+                LockRow("动爻", lock.movingLineIndexes.joinToString("、").ifBlank { "无" })
+                LockRow("伏神/飞神", (lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" })
                 LockRow("资料来源", lock.knowledgeSnippets.firstOrNull()?.sourceName ?: "未检索到明确资料")
+                LockRow("锁定方式", if (lock.usedFallback) "基础兜底" else "资料优先")
+                Text(lock.analysisDirection, style = IOSTextStyles.Footnote, color = AppTheme.colors.label)
                 Text(lock.lockReason, style = IOSTextStyles.Footnote, color = AppTheme.colors.secondaryLabel)
+                if (lock.uncertainReason != null) {
+                    Text(
+                        "未检索到足够资料，当前为基础锁定，请导入刘昌明资料或手动调整。",
+                        style = IOSTextStyles.Footnote,
+                        color = AppTheme.colors.accent,
+                    )
+                }
                 IOSSecondaryButton(
-                    text = "修改",
+                    text = "修改锁定",
                     onClick = { editHint = true },
                     filled = false,
                 )

@@ -19,7 +19,7 @@ fun DivinationCategory.displayName(): String = when (this) {
     DivinationCategory.STUDY -> "考试"
     DivinationCategory.FAME -> "学业"
     DivinationCategory.LOST -> "失物"
-    DivinationCategory.TRAVEL -> "行人"
+    DivinationCategory.TRAVEL -> "行人/出行"
     DivinationCategory.LAWSUIT -> "官事"
     DivinationCategory.PREGNANCY -> "孕产"
     DivinationCategory.HOUSE -> "房宅"

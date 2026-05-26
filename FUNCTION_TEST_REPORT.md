@@ -8,51 +8,75 @@
 
 - Windows 本地构建环境
 - JDK: Android Studio bundled JBR (`C:\Program Files\Android\Android Studio\jbr`)
+- Android SDK: `C:\Users\Administrator\AppData\Local\Android\Sdk`
 - Gradle: Wrapper
 - 构建命令: `.\gradlew.bat assembleDebug --stacktrace --no-daemon`
 - Gradle 缓存: `C:\Users\Administrator\LiuYaoAppGradleHome`
 
-## 各页面测试结果
+## 本轮测试结果
 
-- 首页: 入口路由已巡检，起卦、AI 对话、断语库、案例库、设置入口均有导航目标。最近排盘为空时显示空状态。
-- 起卦页: 占事类别、占事输入、正时起卦、选择时间起卦、手动起卦、手动摆爻、时间选择面板、返回按钮均保留有效交互；数字起卦未出现在可选项中。
-- 排盘页: 排盘基础信息、AI 解析入口、保存案例、反馈入口、分享/导出提示、分析锁定卡片可编译通过；无 chart 时显示空状态。
-- AI 对话: 未配置 Provider 时显示配置提示；已配置后可发送 OpenAI-compatible 请求；支持新建对话、清空上下文、删除对话、复制回复、排盘 Prompt 发送。
-- AI 设置: 支持 Base URL、API Key、模型名、保存配置、显示/隐藏 API Key、删除配置、真实连接测试；API Key 不写入日志。
-- 断语库: 列表、搜索、分类筛选、新增、编辑、详情、删除、导入、预览确认路径已保留；导入读取使用 UTF-8 文本流程。
-- 案例库: 列表、空状态、详情、保存案例、反馈面板、删除、搜索、筛选路径已保留。
-- 设置页: AI 设置、数据管理、导入、导出/备份、恢复入口、清空缓存、显示偏好、默认起卦方式均有响应；默认起卦方式不包含数字起卦。
+- 本地 `assembleDebug` 构建通过。
+- 已生成 debug APK: `C:\Users\Administrator\LiuYaoAppWork\app\build\outputs\apk\debug\app-debug.apk`
+- APK 大小: 14001311 bytes
+- 未执行真机长时间压力测试，本轮通过代码审计和构建验证降低长时间使用崩溃风险。
 
-## 已修复问题列表
+## 长时间使用崩溃风险修复
 
-- 补齐 AI 设置页的 Provider 保存、删除、API Key 隐藏、连接测试逻辑。
-- 补齐 AI 对话页的发送、历史保存、新建对话、清空上下文、删除对话、复制回复逻辑。
-- 新增 OpenAI-compatible 网络调用，并处理 API Key、Base URL、模型名、401、403、429、5xx、网络失败等错误提示。
-- 新增 Internet 权限，避免 AI 请求因权限缺失失败。
-- 备份读写失败改为受控异常并回写 UI 提示。
-- 保持排盘 AI 解析的 Prompt 预览和发送入口，未配置 AI 时安全提示去设置。
+- 起卦页当前时间刷新从 `LaunchedEffect(Unit) + while(true)` 改为仅在正时起卦模式下运行，并使用协程取消状态退出，避免页面切换后长期协程堆积。
+- 起卦按钮、排盘页 AI 解析按钮、保存案例按钮增加重复点击保护，降低重复导航、重复提交和返回栈异常风险。
+- 排盘页分析使用 `LaunchedEffect(chart?.id)`，同一排盘不会重复触发分析。
+- 排盘模型的世爻/应爻读取增加兜底，异常数据不会直接 `first()` 崩溃。
+- 资料检索不再一次性把 OCR 资产全文读入内存，改为按段扫描并限制命中片段数量。
 
-## 暂未实现功能列表
+## 乱码清理情况
 
-- API Key 当前保存于应用私有 SharedPreferences；TODO: 发布前迁移到 Keystore / EncryptedDataStore。
-- AI 流式输出暂未开放；当前为非流式请求，网络层字段已预留 `stream=false`。
-- 多 Provider 列表管理、复杂自定义 Header、Anthropic/Gemini 原生协议为 V2。
-- 完整真机/模拟器手动点击验收未在本环境执行，当前记录为代码路径巡检 + 本地构建验证。
-- 高级资料检索、权重学习、多端同步、云端登录为后续版本。
+- 清理了领域模型、起卦页、排盘页、分析锁定卡片、分析 Tab、资料检索、导入读取、备份恢复等本轮关键链路中的可见乱码。
+- 重写基础枚举中文名：天干、地支、五行、六亲、六神、八卦、卦宫、旺衰、占事类别。
+- 文件导入读取改为先读 bytes，再按 BOM / UTF-8 / GBK / GB2312 / Big5 / 系统编码评分识别，并清理 BOM、控制字符和多余空行。
+- 备份恢复导入也复用编码识别，不再直接用默认 `readText()` 读取中文文件。
 
-## 已知风险
+## AnalysisLock 生成逻辑
 
-- 部分源文件历史中文注释或字符串在 Windows 控制台显示为乱码，但 Kotlin 编译通过；如后续 UI 真机显示异常，需要统一转为 UTF-8 后复测。
-- CalendarCalculator 使用低精度节气算法，临界日期可能存在误差，代码中已有技术债标注。
-- AI 调用依赖用户自行填写可用 API Key、Base URL 和模型名。
+分析锁定按以下顺序生成：
 
-## 本地构建结果
+1. 读取占事类别、占事问题和排盘结果。
+2. `QuestionFocusResolver` 从问题中识别主变量，例如“通过 / 不通过”“录取 / 不录取”“找回 / 找不到”。
+3. `LiuYaoKnowledgeSearchService` 根据占类、问题、卦名、动爻、六亲、六神、世应、空破冲合等关键词检索刘昌明 OCR 文本和断语库，最多返回 10 条相关片段。
+4. `AnalysisLockResolver` 优先从资料片段中识别“用神/取用”规则。
+5. 资料不足时使用内置兜底规则，并明确标记 `usedFallback=true`。
+6. 根据主用神、辅助用神、世爻、应爻、动爻、伏神、飞神生成关键爻列表和分析方向。
+
+## 各分析 Tab 锁定方式
+
+- 神煞：只显示关键爻上的六神，并说明该爻为何进入当前分析。
+- 旺衰：只分析主用神、辅助用神、世应、动爻、伏神/飞神相关爻，显示旬空、月破、日冲、合冲刑害和旺衰。
+- 批注：绑定当前 AnalysisLock，提示后续编辑能力。
+- 案例：只提示同类占事、相同主变量、相近用神结构的案例检索范围，不展示无关案例。
+- 占法：优先展示命中的资料片段；未命中时显示资料不足。
+- 取象：只展示关键爻的六亲、六神、纳甲、伏神/飞神，不展示全量取象大全。
+- 断语：继续按 AnalysisLock 过滤 RuleMatcher，分为主结果、过程条件、旁参考。
+- AI 解析：沿用排盘 AI 入口，后续 Prompt 会使用 AnalysisLock、关键爻、命中断语和资料片段。
+
+## 未导入刘昌明资料时的降级
+
+- AnalysisLock 会正常生成，但标记为基础兜底。
+- 分析锁定卡片显示“未检索到足够资料，当前为基础锁定，请导入刘昌明资料或手动调整。”
+- 占法、取象和断语不会假装命中资料，显示资料不足或空结果。
+- AI 解析后续 Prompt 会明确写入“本地资料不足”。
+
+## 仍未完成的 TODO
+
+- 分析锁定编辑 BottomSheet 仍为提示态，完整可编辑逻辑后续实现。
+- AI 流式输出、Keystore/EncryptedDataStore 保存 API Key、完整真机长时间压力测试后置。
+- 高级资料索引、权重学习、多端同步、云端登录后置到 V2。
+
+## 构建结果
 
 - 结果: 成功
-- APK 路径: `C:\Users\Administrator\LiuYaoAppRepo\app\build\outputs\apk\debug\app-debug.apk`
-- APK 大小: 21291886 bytes
+- APK 路径: `C:\Users\Administrator\LiuYaoAppWork\app\build\outputs\apk\debug\app-debug.apk`
+- APK 大小: 14001311 bytes
 
-## GitHub Actions 结果
+## GitHub Actions
 
-- Workflow 文件已检查为 debug APK 构建并上传 artifact。
-- 本次提交推送后需要等待 GitHub Actions 运行完成；若远端失败，以 Actions 日志为准继续修复。
+- 本轮未等待远端 Actions 完整跑完。
+- 本地构建已通过；推送后以远端 Actions 日志为准继续跟进。

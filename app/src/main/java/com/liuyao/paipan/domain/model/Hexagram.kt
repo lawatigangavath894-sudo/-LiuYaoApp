@@ -1,21 +1,12 @@
 package com.liuyao.paipan.domain.model
 
-/**
- * 8. 六十四卦 Hexagram —— 由下卦(内)与上卦(外)两经卦组成。
- *
- * [lines] 为六爻阴阳,index0 = 初爻(最下)。卦名由内外卦查表得到。
- * 六冲/六合属于卦的固有属性,这里给出判定;世应、卦宫等由排盘引擎结合八宫卦序确定,
- * 故不写死在卦里(同名卦可处不同宫的情形不存在,但世应需配合纳甲流程,留给引擎)。
- */
 data class Hexagram(
-    val lowerTrigram: EightTrigram, // 内卦
-    val upperTrigram: EightTrigram, // 外卦
+    val lowerTrigram: EightTrigram,
+    val upperTrigram: EightTrigram,
 ) {
-    /** 六爻阴阳,index0=初爻 */
     val lines: List<YinYang>
         get() = lowerTrigram.lines + upperTrigram.lines
 
-    /** 卦名,如 "天风姤" */
     val name: String
         get() = HEXAGRAM_NAMES[upperTrigram to lowerTrigram]
             ?: "${upperTrigram.nature}${lowerTrigram.nature}卦"
@@ -23,13 +14,12 @@ data class Hexagram(
     val isSixClash: Boolean get() = name in SIX_CLASH
     val isSixCombine: Boolean get() = name in SIX_COMBINE
 
-    /**
-     * 依动爻集合(1..6,index0=初爻 → 位 1)生成变卦;无动爻返回 null。
-     */
     fun transform(movingPositions: Set<Int>): Hexagram? {
         if (movingPositions.isEmpty()) return null
         val changed = lines.toMutableList()
-        movingPositions.forEach { pos -> changed[pos - 1] = changed[pos - 1].flip() }
+        movingPositions.forEach { pos ->
+            if (pos in 1..6) changed[pos - 1] = changed[pos - 1].flip()
+        }
         val lower = EightTrigram.fromLines(changed.subList(0, 3))
         val upper = EightTrigram.fromLines(changed.subList(3, 6))
         return Hexagram(lower, upper)
@@ -39,11 +29,15 @@ data class Hexagram(
         fun of(lowerCn: String, upperCn: String): Hexagram =
             Hexagram(EightTrigram.fromCn(lowerCn), EightTrigram.fromCn(upperCn))
 
-        /** key = (上卦, 下卦) */
         private val HEXAGRAM_NAMES: Map<Pair<EightTrigram, EightTrigram>, String> = buildMap {
-            val q = EightTrigram.QIAN; val k = EightTrigram.KUN; val zh = EightTrigram.ZHEN
-            val x = EightTrigram.XUN; val ka = EightTrigram.KAN; val l = EightTrigram.LI
-            val g = EightTrigram.GEN; val d = EightTrigram.DUI
+            val q = EightTrigram.QIAN
+            val k = EightTrigram.KUN
+            val zh = EightTrigram.ZHEN
+            val x = EightTrigram.XUN
+            val ka = EightTrigram.KAN
+            val l = EightTrigram.LI
+            val g = EightTrigram.GEN
+            val d = EightTrigram.DUI
             put(q to q, "乾为天"); put(q to k, "天地否"); put(q to zh, "天雷无妄"); put(q to x, "天风姤")
             put(q to ka, "天水讼"); put(q to l, "天火同人"); put(q to g, "天山遁"); put(q to d, "天泽履")
             put(k to q, "地天泰"); put(k to k, "坤为地"); put(k to zh, "地雷复"); put(k to x, "地风升")
@@ -63,11 +57,26 @@ data class Hexagram(
         }
 
         private val SIX_CLASH = setOf(
-            "乾为天", "坎为水", "艮为山", "震为雷", "巽为风", "离为火", "坤为地", "兑为泽",
-            "天雷无妄", "雷天大壮",
+            "乾为天",
+            "坎为水",
+            "艮为山",
+            "震为雷",
+            "巽为风",
+            "离为火",
+            "坤为地",
+            "兑为泽",
+            "天雷无妄",
+            "雷天大壮",
         )
         private val SIX_COMBINE = setOf(
-            "天地否", "地天泰", "山火贲", "火山旅", "水泽节", "泽水困", "雷地豫", "火天大有",
+            "天地否",
+            "地天泰",
+            "山火贲",
+            "火山旅",
+            "水泽节",
+            "泽水困",
+            "雷地豫",
+            "火天大有",
         )
     }
 }

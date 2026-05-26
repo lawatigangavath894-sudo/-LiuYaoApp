@@ -8,13 +8,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.liuyao.paipan.domain.model.DivinationCategory
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
+import com.liuyao.paipan.ui.components.IOSPrimaryButton
 import com.liuyao.paipan.ui.screens.chart.AnalysisLockCard
 import com.liuyao.paipan.ui.screens.chart.AnalysisTabs
 import com.liuyao.paipan.ui.screens.chart.ChartAnalysisViewModel
@@ -27,12 +33,6 @@ import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
-/**
- * 鎺掔洏椤点€傛暟鎹潵鑷?[ChartViewModel] 鐨勭姸鎬?鐢?[LiuYaoChartEngine] 鎺掔洏鍚庣粡
- * [ChartUiMapper] 鎶曞奖涓哄睍绀烘ā鍨嬨€俇I 浠呮覆鏌?涓嶅惈浠讳綍鎺掔洏閫昏緫銆?
- *
- * 缁撴瀯(鑷笂鑰屼笅):Large Title 鍗犱簨 鈫?鏃堕棿鍗?鈫?鍗﹁薄鍗?鈫?鍏埢鐩?鈫?鍒嗘瀽鍖恒€?
- */
 @Composable
 fun ChartScreen(
     vm: ChartViewModel,
@@ -42,16 +42,16 @@ fun ChartScreen(
     val state by vm.ui.collectAsStateWithLifecycle()
     val chart = state.chart
 
-    val analysisVm: ChartAnalysisViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val analysisVm: ChartAnalysisViewModel = viewModel()
     val analysisState by analysisVm.ui.collectAsStateWithLifecycle()
 
-    androidx.compose.runtime.LaunchedEffect(chart?.id) {
-        if (chart != null) {
-            analysisVm.analyze(chart, chart.category ?: com.liuyao.paipan.domain.model.DivinationCategory.OTHER)
+    LaunchedEffect(chart?.id) {
+        chart?.let {
+            analysisVm.analyze(it, it.category ?: DivinationCategory.OTHER)
         }
     }
 
-    val title = chart?.question ?: "鎺掔洏"
+    val title = chart?.question ?: "排盘"
     IOSDetailScaffold(title = title, onBack = onBack) { padding ->
         if (chart == null) {
             EmptyChart(padding)
@@ -68,28 +68,38 @@ fun ChartScreen(
                 item { HexagramPlate(ui) }
                 item {
                     AnalysisTabs(
+                        chart = chart,
+                        lock = analysisState.analysisLock,
                         report = analysisState.report,
                         favoriteIds = analysisState.favoriteRuleIds,
                         onToggleFavorite = analysisVm::toggleFavorite,
                     )
                 }
                 item {
-                    val caseVm: com.liuyao.paipan.ui.screens.cases.CaseViewModel =
-                        androidx.lifecycle.viewmodel.compose.viewModel()
-                    var saved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-                    androidx.compose.foundation.layout.Column(
+                    val caseVm: com.liuyao.paipan.ui.screens.cases.CaseViewModel = viewModel()
+                    var saved by remember(chart.id) { mutableStateOf(false) }
+                    var aiOpening by remember(chart.id) { mutableStateOf(false) }
+                    Column(
                         Modifier.padding(horizontal = Spacing.pageHorizontal),
                         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
-                        com.liuyao.paipan.ui.components.IOSPrimaryButton(
-                            text = "AI 瑙ｆ瀽",
-                            onClick = { onAiAnalyze(chart.id) },
+                        IOSPrimaryButton(
+                            text = if (aiOpening) "正在打开 AI..." else "AI 解析",
+                            enabled = !aiOpening,
+                            onClick = {
+                                if (!aiOpening) {
+                                    aiOpening = true
+                                    onAiAnalyze(chart.id)
+                                }
+                            },
                         )
-                        com.liuyao.paipan.ui.components.IOSPrimaryButton(
+                        IOSPrimaryButton(
                             text = if (saved) "已保存为案例 ✓" else "保存为案例",
                             enabled = !saved,
                             onClick = {
-                                caseVm.saveCurrentChartAsCase(chart, analysisState.report) { saved = true }
+                                if (!saved) {
+                                    caseVm.saveCurrentChartAsCase(chart, analysisState.report) { saved = true }
+                                }
                             },
                         )
                     }

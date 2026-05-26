@@ -22,7 +22,7 @@ class LiuYaoKnowledgeSearchService(private val context: Context) {
         limit: Int = 10,
     ): List<KnowledgeSnippet> = withContext(Dispatchers.IO) {
         val keywords = buildKeywords(category, question, chart, extraKeywords)
-        val assetHits = searchAssets(keywords)
+        val assetHits = searchAssets(keywords, limit * 2)
         val ruleHits = searchRules(rules, keywords)
         (assetHits + ruleHits)
             .distinctBy { it.sourceName + it.originalText.take(80) }
@@ -44,32 +44,50 @@ class LiuYaoKnowledgeSearchService(private val context: Context) {
         addAll(listOf("用神", "世爻", "应爻", "动爻", "变爻", "伏神", "飞神"))
         addAll(listOf("旬空", "空亡", "月破", "日冲", "月建", "日辰", "旺相休囚", "生克", "合", "冲", "刑", "害", "墓", "绝"))
         addAll(SixGod.entries.map { it.displayName() })
-        chart.movingLines.takeIf { it.isNotEmpty() }?.let { add("动爻") }
+        if (chart.movingLines.isNotEmpty()) add("动爻")
         add(chart.originalHexagram.name)
         chart.changedHexagram?.name?.let { add(it) }
         addAll(listOf("成", "不成", "过", "不过", "录取", "不录取", "找到", "找不到", "吉", "凶"))
     }.map { it.trim() }.filter { it.isNotBlank() }.distinct()
 
-    private fun searchAssets(keywords: List<String>): List<KnowledgeSnippet> {
+    private fun searchAssets(keywords: List<String>, cap: Int): List<KnowledgeSnippet> {
         val root = "liuchangming/ocr_txt"
         val files = runCatching { context.assets.list(root)?.toList().orEmpty() }.getOrDefault(emptyList())
-        return files.flatMap { fileName ->
-            val text = runCatching {
-                context.assets.open("$root/$fileName").bufferedReader(Charsets.UTF_8).use { it.readText() }
-            }.getOrDefault("")
-            splitText(text).mapIndexedNotNull { index, segment ->
-                val matched = keywords.filter { segment.contains(it) }
-                if (matched.isEmpty()) return@mapIndexedNotNull null
-                KnowledgeSnippet(
-                    id = stableId(fileName, index.toString(), segment),
-                    sourceName = fileName.removeSuffix(".txt"),
-                    sectionTitle = segment.lineSequence().firstOrNull()?.take(40),
-                    originalText = segment.take(700),
-                    matchedKeywords = matched.take(8),
-                    relevanceScore = score(segment, matched),
-                )
+        val hits = mutableListOf<KnowledgeSnippet>()
+        files.forEach { fileName ->
+            runCatching {
+                context.assets.open("$root/$fileName").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    var index = 0
+                    val buffer = StringBuilder()
+                    fun flush() {
+                        val segment = buffer.toString().trim()
+                        buffer.clear()
+                        if (segment.length < 20) return
+                        val matched = keywords.filter { segment.contains(it) }
+                        if (matched.isEmpty()) return
+                        hits += KnowledgeSnippet(
+                            id = stableId(fileName, index.toString(), segment),
+                            sourceName = fileName.removeSuffix(".txt"),
+                            sectionTitle = segment.lineSequence().firstOrNull()?.take(40),
+                            originalText = segment.take(700),
+                            matchedKeywords = matched.take(8),
+                            relevanceScore = score(segment, matched),
+                        )
+                    }
+                    lines.forEach { line ->
+                        if (line.startsWith("===== Page ") || line.isBlank()) {
+                            flush()
+                            index++
+                        } else {
+                            buffer.appendLine(line)
+                        }
+                    }
+                    flush()
+                }
             }
+            if (hits.size >= cap) return hits.sortedByDescending { it.relevanceScore }.take(cap)
         }
+        return hits.sortedByDescending { it.relevanceScore }.take(cap)
     }
 
     private fun searchRules(rules: List<DivinationRule>, keywords: List<String>): List<KnowledgeSnippet> =
@@ -88,35 +106,27 @@ class LiuYaoKnowledgeSearchService(private val context: Context) {
             )
         }
 
-    private fun splitText(text: String): List<String> =
-        text.split(Regex("""(?m)^===== Page \d+ / \d+ =====$"""))
-            .flatMap { page ->
-                page.split(Regex("""\n\s*\n+"""))
-            }
-            .map { it.trim() }
-            .filter { it.length >= 20 }
-
     private fun score(text: String, matched: List<String>): Double {
         var score = matched.sumOf { if (it.length >= 2) 2.0 else 0.8 }
-        if (text.contains("用神")) score += 3.0
+        if (text.contains("用神") || text.contains("取用")) score += 3.0
         if (text.contains("世") || text.contains("应")) score += 1.0
         if (text.contains("断") || text.contains("占")) score += 1.0
         return score
     }
 
     private fun categoryAliases(category: DivinationCategory): List<String> = when (category) {
-        DivinationCategory.MARRIAGE -> listOf("婚姻", "感情", "妻财", "官鬼")
-        DivinationCategory.WEALTH -> listOf("财运", "求财", "妻财")
+        DivinationCategory.MARRIAGE -> listOf("婚姻", "感情", "妻财", "官鬼", "世应")
+        DivinationCategory.WEALTH -> listOf("财运", "求财", "妻财", "子孙", "兄弟")
         DivinationCategory.STUDY, DivinationCategory.FAME -> listOf("考试", "学业", "文书", "父母", "官鬼", "录取")
-        DivinationCategory.CAREER -> listOf("工作", "求职", "官鬼", "父母", "入职")
-        DivinationCategory.HEALTH -> listOf("疾病", "健康", "官鬼", "子孙")
-        DivinationCategory.LOST -> listOf("失物", "寻物", "妻财", "找到")
-        DivinationCategory.TRAVEL -> listOf("行人", "出行", "世爻", "应爻", "来")
-        DivinationCategory.LAWSUIT -> listOf("官事", "诉讼", "官鬼", "父母")
-        DivinationCategory.PREGNANCY -> listOf("孕产", "怀孕", "子孙")
-        DivinationCategory.HOUSE -> listOf("房宅", "父母", "宅")
-        DivinationCategory.COOPERATION -> listOf("合作", "世应", "妻财")
-        DivinationCategory.FORTUNE -> listOf("运势", "世爻")
+        DivinationCategory.CAREER -> listOf("工作", "求职", "官鬼", "父母", "入职", "offer")
+        DivinationCategory.HEALTH -> listOf("疾病", "健康", "官鬼", "子孙", "白虎", "玄武")
+        DivinationCategory.LOST -> listOf("失物", "寻物", "妻财", "父母", "子孙", "伏神", "找到")
+        DivinationCategory.TRAVEL -> listOf("行人", "出行", "世爻", "应爻", "父母", "消息", "来")
+        DivinationCategory.LAWSUIT -> listOf("官事", "诉讼", "官鬼", "父母", "证据")
+        DivinationCategory.PREGNANCY -> listOf("孕产", "怀孕", "子孙", "父母", "白虎")
+        DivinationCategory.HOUSE -> listOf("房宅", "父母", "妻财", "官鬼")
+        DivinationCategory.COOPERATION -> listOf("合作", "世应", "妻财", "兄弟", "官鬼")
+        DivinationCategory.FORTUNE -> listOf("运势", "世爻", "用神")
         DivinationCategory.OTHER -> listOf("用神", "世爻", "应爻")
     }
 

@@ -13,10 +13,16 @@ data class AnalysisLock(
     val worldLineIndex: Int?,
     val responseLineIndex: Int?,
     val keyLineIndexes: List<Int>,
+    val movingLineIndexes: List<Int>,
+    val hiddenSpiritLineIndexes: List<Int>,
+    val flyingSpiritLineIndexes: List<Int>,
     val focusKeywords: List<String>,
     val knowledgeSnippets: List<KnowledgeSnippet>,
+    val analysisDirection: String,
     val lockReason: String,
     val uncertainReason: String?,
+    val excludedScopes: List<String>,
+    val usedFallback: Boolean,
     val analysisScope: AnalysisScope,
 )
 

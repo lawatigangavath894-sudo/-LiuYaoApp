@@ -41,13 +41,12 @@ import com.liuyao.paipan.domain.model.DivinationMethod
 import com.liuyao.paipan.domain.model.DivinationMode
 import com.liuyao.paipan.domain.model.YinYang
 import com.liuyao.paipan.domain.model.yaoPositionName
-import com.liuyao.paipan.ui.components.IOSBottomSheet
 import com.liuyao.paipan.ui.components.DateTimePickerBottomSheet
+import com.liuyao.paipan.ui.components.IOSBottomSheet
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSListRow
 import com.liuyao.paipan.ui.components.IOSPrimaryButton
-import com.liuyao.paipan.ui.components.IOSSecondaryButton
 import com.liuyao.paipan.ui.components.clickableNoRipple
 import com.liuyao.paipan.ui.screens.chart.ChartAction
 import com.liuyao.paipan.ui.screens.chart.ChartViewModel
@@ -60,6 +59,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -81,21 +81,10 @@ class CastViewModel : ViewModel() {
     private val _ui = MutableStateFlow(CastUiState())
     val ui: StateFlow<CastUiState> = _ui.asStateFlow()
 
-    fun updateQuestion(text: String) {
-        _ui.update { it.copy(questionText = text) }
-    }
-
-    fun selectCategory(category: DivinationCategory) {
-        _ui.update { it.copy(category = category) }
-    }
-
-    fun selectMode(mode: DivinationMode) {
-        _ui.update { it.copy(mode = mode) }
-    }
-
-    fun setSelectedDateTime(dateTime: LocalDateTime) {
-        _ui.update { it.copy(selectedDateTime = dateTime) }
-    }
+    fun updateQuestion(text: String) = _ui.update { it.copy(questionText = text) }
+    fun selectCategory(category: DivinationCategory) = _ui.update { it.copy(category = category) }
+    fun selectMode(mode: DivinationMode) = _ui.update { it.copy(mode = mode) }
+    fun setSelectedDateTime(dateTime: LocalDateTime) = _ui.update { it.copy(selectedDateTime = dateTime) }
 
     fun toggleYinYang(index: Int) {
         _ui.update { state ->
@@ -127,14 +116,12 @@ class CastViewModel : ViewModel() {
                 category = state.category,
                 method = DivinationMethod.SolarTime,
             )
-
             DivinationMode.SELECTED_TIME -> MeiHuaTimeDivinationCalculator.chartInput(
                 dateTime = state.selectedDateTime,
                 question = question,
                 category = state.category,
                 method = DivinationMethod.SelectedTime,
             )
-
             DivinationMode.MANUAL -> {
                 val lines = state.manualLines.sortedBy { it.index }
                 ChartInput(
@@ -160,11 +147,14 @@ fun CastScreen(
     val state by castVm.ui.collectAsStateWithLifecycle()
     var activeSheet by remember { mutableStateOf<CastSheet?>(null) }
     var nowForDisplay by remember { mutableStateOf(LocalDateTime.now()) }
+    var casting by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            nowForDisplay = LocalDateTime.now()
-            delay(1_000)
+    LaunchedEffect(state.mode) {
+        if (state.mode == DivinationMode.CURRENT_TIME) {
+            while (isActive) {
+                nowForDisplay = LocalDateTime.now()
+                delay(1_000)
+            }
         }
     }
 
@@ -213,7 +203,6 @@ fun CastScreen(
                         item { CurrentTimeInfoCard(nowForDisplay) }
                     }
                 }
-
                 DivinationMode.SELECTED_TIME -> item {
                     IOSGroupedSection(header = "时间设置") {
                         item {
@@ -224,7 +213,6 @@ fun CastScreen(
                         }
                     }
                 }
-
                 DivinationMode.MANUAL -> Unit
             }
 
@@ -241,10 +229,14 @@ fun CastScreen(
             item {
                 Column(Modifier.padding(horizontal = Spacing.pageHorizontal)) {
                     IOSPrimaryButton(
-                        text = "起此卦",
+                        text = if (casting) "起卦中..." else "起此卦",
+                        enabled = !casting,
                         onClick = {
-                            vm.dispatch(ChartAction.BuildChart(castVm.buildChartInput()))
-                            onCasted()
+                            if (!casting) {
+                                casting = true
+                                vm.dispatch(ChartAction.BuildChart(castVm.buildChartInput()))
+                                onCasted()
+                            }
                         },
                     )
                 }
@@ -261,7 +253,6 @@ fun CastScreen(
             },
             onDismiss = { activeSheet = null },
         )
-
         CastSheet.Method -> MethodPickerSheet(
             selected = state.mode,
             onSelect = {
@@ -270,7 +261,6 @@ fun CastScreen(
             },
             onDismiss = { activeSheet = null },
         )
-
         CastSheet.DateTime -> DateTimePickerBottomSheet(
             dateTime = state.selectedDateTime,
             onConfirm = {
@@ -279,7 +269,6 @@ fun CastScreen(
             },
             onDismiss = { activeSheet = null },
         )
-
         null -> Unit
     }
 }
