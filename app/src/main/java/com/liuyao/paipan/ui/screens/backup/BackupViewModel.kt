@@ -70,7 +70,7 @@ class BackupViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
                     it.write(content.toByteArray(Charsets.UTF_8))
-                } ?: error("无法写入文件")
+                } ?: throw IllegalStateException("无法写入文件")
             }
             _ui.update { it.copy(message = "导出成功") }
         } catch (e: Exception) {
@@ -85,7 +85,7 @@ class BackupViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val text = withContext(Dispatchers.IO) {
                 getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                    ?: error("无法打开文件")
+                    ?: throw IllegalStateException("无法打开文件")
             }
             val p = importer.preview(text)
             _ui.update { it.copy(importJsonText = text, importPreview = p, busy = false) }

@@ -549,6 +549,7 @@ fun IOSFormTextField(
     label: String? = null,
     singleLine: Boolean = true,
     minLines: Int = 1,
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
 ) {
     androidx.compose.foundation.layout.Column(
         modifier = modifier
@@ -564,6 +565,7 @@ fun IOSFormTextField(
             onValueChange = onValueChange,
             singleLine = singleLine,
             minLines = minLines,
+            visualTransformation = visualTransformation,
             textStyle = IOSTextStyles.Body.merge(androidx.compose.ui.text.TextStyle(color = AppTheme.colors.label)),
             cursorBrush = androidx.compose.ui.graphics.SolidColor(AppTheme.colors.accent),
             modifier = Modifier.fillMaxWidth(),

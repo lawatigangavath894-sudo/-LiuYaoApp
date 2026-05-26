@@ -7,22 +7,24 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
+import com.liuyao.paipan.ui.components.IOSFormTextField
 import com.liuyao.paipan.ui.components.IOSGroupedSection
-import com.liuyao.paipan.ui.components.IOSListRow
 import com.liuyao.paipan.ui.components.IOSPrimaryButton
 import com.liuyao.paipan.ui.components.IOSSecondaryButton
+import com.liuyao.paipan.ui.screens.ai.AiSettingsViewModel
 import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
 @Composable
 fun AiSettingsScreen(onBack: () -> Unit) {
-    var message by remember { mutableStateOf("AI 配置持久化与真实连接测试暂未完成，将在后续版本开放。") }
+    val vm: AiSettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val state by vm.ui.collectAsStateWithLifecycle()
+    val config = state.config
 
     IOSDetailScaffold(title = "AI 大模型设置", onBack = onBack) { padding ->
         LazyColumn(
@@ -32,30 +34,70 @@ fun AiSettingsScreen(onBack: () -> Unit) {
         ) {
             item {
                 IOSGroupedSection(header = "Provider") {
-                    item { IOSListRow("Base URL", value = "未配置") }
-                    item { IOSListRow("API Key", value = "未配置") }
-                    item { IOSListRow("模型名", value = "未配置") }
-                    item { IOSListRow("默认模型", value = "未配置") }
-                }
-            }
-            item {
-                IOSGroupedSection(header = "操作") {
                     item {
-                        Column(Modifier.padding(Spacing.cardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                            IOSPrimaryButton("新增 Provider", onClick = { message = "新增 Provider 功能暂未完成，将在后续版本开放。" })
-                            IOSSecondaryButton("测试连接", onClick = { message = "请先配置 Base URL、API Key 和模型名后再测试。真实请求将在后续版本开放。" }, filled = false)
-                            IOSSecondaryButton("保存配置", onClick = { message = "保存配置功能暂未完成，将在后续版本开放。" }, filled = false)
-                        }
+                        IOSFormTextField(
+                            label = "供应商名称",
+                            value = config.providerName,
+                            onValueChange = { vm.update(config.copy(providerName = it)) },
+                            placeholder = "OpenAI-compatible",
+                        )
+                    }
+                    item {
+                        IOSFormTextField(
+                            label = "Base URL",
+                            value = config.baseUrl,
+                            onValueChange = { vm.update(config.copy(baseUrl = it)) },
+                            placeholder = "https://api.openai.com/v1",
+                        )
+                    }
+                    item {
+                        IOSFormTextField(
+                            label = "API Key",
+                            value = config.apiKey,
+                            onValueChange = { vm.update(config.copy(apiKey = it)) },
+                            placeholder = "由用户自行填写",
+                            visualTransformation = if (state.showApiKey) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                        )
+                    }
+                    item {
+                        IOSFormTextField(
+                            label = "模型名",
+                            value = config.modelName,
+                            onValueChange = { vm.update(config.copy(modelName = it)) },
+                            placeholder = "gpt-4o-mini / deepseek-chat / 自定义模型",
+                        )
                     }
                 }
             }
             item {
-                Text(
-                    message,
-                    style = IOSTextStyles.Footnote,
-                    color = AppTheme.colors.secondaryLabel,
-                    modifier = Modifier.padding(horizontal = Spacing.pageHorizontal),
-                )
+                IOSGroupedSection(header = "操作", footer = "API Key 当前使用应用私有偏好保存；TODO：发布前迁移到 Keystore / EncryptedDataStore。") {
+                    item {
+                        Column(Modifier.padding(Spacing.cardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                            IOSSecondaryButton(
+                                text = if (state.showApiKey) "隐藏 API Key" else "显示 API Key",
+                                onClick = { vm.toggleApiKey() },
+                                filled = false,
+                            )
+                            IOSPrimaryButton("保存配置", onClick = { vm.save() })
+                            IOSSecondaryButton(
+                                text = if (state.isTesting) "测试中..." else "测试连接",
+                                onClick = { vm.testConnection() },
+                                filled = false,
+                            )
+                            IOSSecondaryButton("删除 Provider", onClick = { vm.deleteProvider() }, filled = false)
+                        }
+                    }
+                }
+            }
+            state.message?.let { msg ->
+                item {
+                    Text(
+                        msg,
+                        style = IOSTextStyles.Footnote,
+                        color = if (msg.contains("成功") || msg.contains("已保存")) AppTheme.colors.accent else AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(horizontal = Spacing.pageHorizontal),
+                    )
+                }
             }
         }
     }
