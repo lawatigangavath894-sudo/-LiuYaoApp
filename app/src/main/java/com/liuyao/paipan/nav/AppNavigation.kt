@@ -11,14 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,14 +51,14 @@ import com.liuyao.paipan.ui.screens.imports.RuleImportScreen
 import com.liuyao.paipan.ui.screens.imports.RuleImportViewModel
 import com.liuyao.paipan.ui.theme.AppTheme
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, val label: String)
 
 private val tabs = listOf(
-    Tab(Route.Home.route, "首页", Icons.Filled.Home),
-    Tab(Route.AiChat.route, "AI 对话", Icons.Filled.Chat),
-    Tab(Route.Rules.route, "断语", Icons.Filled.MenuBook),
-    Tab(Route.Cases.route, "案例", Icons.Filled.Inbox),
-    Tab(Route.Settings.route, "设置", Icons.Filled.Settings),
+    Tab(Route.Home.route, "首页"),
+    Tab(Route.AiChat.route, "AI 对话"),
+    Tab(Route.Rules.route, "断语"),
+    Tab(Route.Cases.route, "案例"),
+    Tab(Route.Settings.route, "设置"),
 )
 
 @Composable
@@ -296,10 +288,9 @@ private fun IosTabBar(current: String?, onSelect: (String) -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    Icon(tab.icon, contentDescription = tab.label, tint = tint)
                     Text(
                         tab.label,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         color = tint,
                     )

@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -128,10 +124,10 @@ fun CasesScreen(
                                             }
                                         }
                                     }
-                                    Icon(
-                                        imageVector = if (case.favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                        contentDescription = if (case.favorite) "取消收藏" else "收藏",
-                                        tint = if (case.favorite) AppTheme.colors.combine else AppTheme.colors.tertiaryLabel,
+                                    Text(
+                                        text = if (case.favorite) "★" else "☆",
+                                        style = IOSTextStyles.Title3,
+                                        color = if (case.favorite) AppTheme.colors.combine else AppTheme.colors.tertiaryLabel,
                                         modifier = Modifier.clickableNoRipple { vm.toggleFavorite(case.id) },
                                     )
                                 }

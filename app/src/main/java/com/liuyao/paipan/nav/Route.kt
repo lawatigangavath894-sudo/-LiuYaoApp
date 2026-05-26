@@ -44,6 +44,6 @@ sealed class Route(val route: String) {
 
     companion object {
         /** 显示底部 TabBar 的一级路由 */
-        val tabRoutes = setOf(Home.route, AiChat.route, Rules.route, Cases.route, Settings.route)
+        val tabRoutes = setOf("home", "ai_chat", "rules", "cases", "settings")
     }
 }

@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,10 +47,10 @@ fun MatchResultCard(
                     color = AppTheme.colors.label,
                     modifier = Modifier.weight(1f).clickableNoRipple { expanded = !expanded },
                 )
-                Icon(
-                    imageVector = if (favorited) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                    contentDescription = if (favorited) "取消收藏" else "收藏到批注",
-                    tint = if (favorited) AppTheme.colors.combine else AppTheme.colors.tertiaryLabel,
+                Text(
+                    text = if (favorited) "★" else "☆",
+                    style = IOSTextStyles.Title3,
+                    color = if (favorited) AppTheme.colors.combine else AppTheme.colors.tertiaryLabel,
                     modifier = Modifier.padding(start = Spacing.sm).clickableNoRipple(onToggleFavorite),
                 )
             }
