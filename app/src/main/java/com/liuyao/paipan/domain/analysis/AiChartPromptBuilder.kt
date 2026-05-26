@@ -1,6 +1,7 @@
 package com.liuyao.paipan.domain.analysis
 
 import com.liuyao.paipan.domain.match.MatchReport
+import com.liuyao.paipan.domain.match.RuleMatchResult
 import com.liuyao.paipan.domain.model.LiuYaoChart
 
 object AiChartPromptBuilder {
@@ -19,13 +20,15 @@ object AiChartPromptBuilder {
         appendLine("世爻：${lock.worldLineIndex ?: "未定"}")
         appendLine("应爻：${lock.responseLineIndex ?: "未定"}")
         appendLine("关键爻：${lock.keyLineIndexes.joinToString("、").ifBlank { "未定" }}")
+        appendLine("动爻：${lock.movingLineIndexes.joinToString("、").ifBlank { "无" }}")
+        appendLine("伏神/飞神相关爻：${(lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" }}")
         appendLine("锁定理由：${lock.lockReason}")
         appendLine("资料不足：${lock.uncertainReason ?: "否"}")
-        appendLine("资料来源：${lock.knowledgeSnippets.joinToString("；") { it.sourceName }.ifBlank { "未检索到" }}")
+        appendLine("资料来源：${lock.knowledgeSnippets.joinToString("、") { it.sourceName }.ifBlank { "未检索到" }}")
         appendLine()
         appendLine("【排盘信息】")
         appendLine("起卦时间：${chart.dateTime}")
-        appendLine("年/月/日/时：${chart.yearGanZhi.displayName()} ${chart.monthGanZhi.displayName()} ${chart.dayGanZhi.displayName()} ${chart.hourGanZhi.displayName()}")
+        appendLine("年月日时干支：${chart.yearGanZhi.displayName()} ${chart.monthGanZhi.displayName()} ${chart.dayGanZhi.displayName()} ${chart.hourGanZhi.displayName()}")
         appendLine("旬空：${chart.xunKong.joinToString("、") { it.displayName() }}")
         appendLine("本卦：${chart.originalHexagram.name}")
         appendLine("变卦：${chart.changedHexagram?.name ?: "无变卦"}")
@@ -83,7 +86,7 @@ object AiChartPromptBuilder {
         appendLine("5. 不得忽略资料不足。")
     }
 
-    private fun StringBuilder.appendLayer(title: String, items: List<com.liuyao.paipan.domain.match.RuleMatchResult>) {
+    private fun StringBuilder.appendLayer(title: String, items: List<RuleMatchResult>) {
         appendLine("$title：")
         if (items.isEmpty()) {
             appendLine("无")

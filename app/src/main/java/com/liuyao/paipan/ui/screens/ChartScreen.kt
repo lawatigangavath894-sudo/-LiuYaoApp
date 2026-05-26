@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,9 +17,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.liuyao.paipan.data.ai.AiConfigStore
+import com.liuyao.paipan.data.ai.OpenAiCompatibleClient
 import com.liuyao.paipan.domain.model.DivinationCategory
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
 import com.liuyao.paipan.ui.components.IOSPrimaryButton
@@ -38,12 +44,15 @@ fun ChartScreen(
     vm: ChartViewModel,
     onBack: () -> Unit,
     onAiAnalyze: (String) -> Unit = {},
+    onOpenAiSettings: () -> Unit = {},
 ) {
     val state by vm.ui.collectAsStateWithLifecycle()
     val chart = state.chart
+    val context = LocalContext.current
 
     val analysisVm: ChartAnalysisViewModel = viewModel()
     val analysisState by analysisVm.ui.collectAsStateWithLifecycle()
+    var showAiConfigPrompt by remember { mutableStateOf(false) }
 
     LaunchedEffect(chart?.id) {
         chart?.let {
@@ -88,8 +97,14 @@ fun ChartScreen(
                             enabled = !aiOpening,
                             onClick = {
                                 if (!aiOpening) {
-                                    aiOpening = true
-                                    onAiAnalyze(chart.id)
+                                    val provider = AiConfigStore(context).loadProvider()
+                                    val invalid = OpenAiCompatibleClient().validate(provider)
+                                    if (invalid != null) {
+                                        showAiConfigPrompt = true
+                                    } else {
+                                        aiOpening = true
+                                        onAiAnalyze(chart.id)
+                                    }
                                 }
                             },
                         )
@@ -106,6 +121,32 @@ fun ChartScreen(
                 }
             }
         }
+    }
+
+    if (showAiConfigPrompt) {
+        AlertDialog(
+            onDismissRequest = { showAiConfigPrompt = false },
+            title = { Text("请先配置 AI 模型") },
+            text = { Text("当前没有可用的默认 AI Provider，请先在设置中填写 Base URL、API Key 和模型名。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAiConfigPrompt = false
+                        onOpenAiSettings()
+                    },
+                ) {
+                    Text("去设置", color = AppTheme.colors.accent, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAiConfigPrompt = false }) {
+                    Text("取消", color = AppTheme.colors.secondaryLabel)
+                }
+            },
+            containerColor = AppTheme.colors.card,
+            titleContentColor = AppTheme.colors.label,
+            textContentColor = AppTheme.colors.secondaryLabel,
+        )
     }
 }
 

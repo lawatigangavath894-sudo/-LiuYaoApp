@@ -243,12 +243,12 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     vm = chartVm,
                     onBack = { nav.safeBack(Route.Home.route) },
                     onAiAnalyze = { chartId -> nav.navigate(Route.AiChat.create(chartId)) },
+                    onOpenAiSettings = { nav.navigate(Route.AiSettings.route) },
                 )
             }
         }
     }
 }
-
 private fun NavHostController.switchTab(route: String) {
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
