@@ -33,7 +33,7 @@ fun AnalysisLockCard(lock: AnalysisLock?, message: String?) {
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
                 if (lock == null) {
-                    Text("正在锁定占类、用神与资料片段...", style = IOSTextStyles.Subhead, color = AppTheme.colors.secondaryLabel)
+                    Text("正在锁定占类、主变量、用神和资料片段...", style = IOSTextStyles.Subhead, color = AppTheme.colors.secondaryLabel)
                     return@Column
                 }
                 LockRow("占事类别", lock.category.displayName())
@@ -43,16 +43,19 @@ fun AnalysisLockCard(lock: AnalysisLock?, message: String?) {
                 LockRow("辅助用神", lock.secondaryUsefulGods.joinToString("、") { it.displayName() }.ifBlank { "无" })
                 LockRow("世爻", lock.worldLineIndex?.toString() ?: "未定")
                 LockRow("应爻", lock.responseLineIndex?.toString() ?: "未定")
+                LockRow("用神爻", lock.usefulGodLineIndexes.joinToString("、").ifBlank { "未定" })
                 LockRow("关键爻", lock.keyLineIndexes.joinToString("、").ifBlank { "未定" })
-                LockRow("动爻", lock.movingLineIndexes.joinToString("、").ifBlank { "无" })
-                LockRow("伏神/飞神", (lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" })
+                LockRow("动变爻", (lock.movingLineIndexes + lock.changedLineIndexes).distinct().joinToString("、").ifBlank { "无" })
+                LockRow("伏飞爻", (lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" })
+                LockRow("空破冲", (lock.voidLineIndexes + lock.monthBrokenLineIndexes + lock.dayClashedLineIndexes).distinct().joinToString("、").ifBlank { "无" })
+                LockRow("相关神煞", lock.relatedShenSha.joinToString("、").ifBlank { "无" })
                 LockRow("资料来源", lock.knowledgeSnippets.firstOrNull()?.sourceName ?: "未检索到明确资料")
-                LockRow("锁定方式", if (lock.usedFallback) "基础兜底" else "资料优先")
+                LockRow("锁定方式", if (lock.usedFallback) "基础规则 fallback" else "资料优先")
                 Text(lock.analysisDirection, style = IOSTextStyles.Footnote, color = AppTheme.colors.label)
                 Text(lock.lockReason, style = IOSTextStyles.Footnote, color = AppTheme.colors.secondaryLabel)
-                if (lock.uncertainReason != null) {
+                if (lock.analysisWarnings.isNotEmpty()) {
                     Text(
-                        "未检索到足够资料，当前为基础锁定，请导入刘昌明资料或手动调整。",
+                        "资料不足提示：${lock.analysisWarnings.joinToString("；")}",
                         style = IOSTextStyles.Footnote,
                         color = AppTheme.colors.accent,
                     )

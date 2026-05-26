@@ -14,17 +14,21 @@ object AiChartPromptBuilder {
         appendLine("占事问题：${lock.question}")
         appendLine("主变量：${lock.mainVariable}")
         appendLine()
-        appendLine("【分析锁定】")
+        appendLine("【AnalysisLock】")
         appendLine("主用神：${lock.primaryUsefulGod?.displayName() ?: "未锁定"}")
         appendLine("辅助用神：${lock.secondaryUsefulGods.joinToString("、") { it.displayName() }.ifBlank { "无" }}")
         appendLine("世爻：${lock.worldLineIndex ?: "未定"}")
         appendLine("应爻：${lock.responseLineIndex ?: "未定"}")
+        appendLine("用神爻：${lock.usefulGodLineIndexes.joinToString("、").ifBlank { "未定" }}")
         appendLine("关键爻：${lock.keyLineIndexes.joinToString("、").ifBlank { "未定" }}")
-        appendLine("动爻：${lock.movingLineIndexes.joinToString("、").ifBlank { "无" }}")
-        appendLine("伏神/飞神相关爻：${(lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" }}")
+        appendLine("动变爻：${(lock.movingLineIndexes + lock.changedLineIndexes).distinct().joinToString("、").ifBlank { "无" }}")
+        appendLine("伏飞爻：${(lock.hiddenSpiritLineIndexes + lock.flyingSpiritLineIndexes).distinct().joinToString("、").ifBlank { "无" }}")
+        appendLine("空亡爻：${lock.voidLineIndexes.joinToString("、").ifBlank { "无" }}")
+        appendLine("月破爻：${lock.monthBrokenLineIndexes.joinToString("、").ifBlank { "无" }}")
+        appendLine("日冲爻：${lock.dayClashedLineIndexes.joinToString("、").ifBlank { "无" }}")
+        appendLine("相关神煞：${lock.relatedShenSha.joinToString("、").ifBlank { "无" }}")
         appendLine("锁定理由：${lock.lockReason}")
-        appendLine("资料不足：${lock.uncertainReason ?: "否"}")
-        appendLine("资料来源：${lock.knowledgeSnippets.joinToString("、") { it.sourceName }.ifBlank { "未检索到" }}")
+        appendLine("资料不足：${lock.analysisWarnings.joinToString("；").ifBlank { "否" }}")
         appendLine()
         appendLine("【排盘信息】")
         appendLine("起卦时间：${chart.dateTime}")
@@ -39,7 +43,7 @@ object AiChartPromptBuilder {
         appendLine("六爻明细（上爻到初爻）：")
         chart.lines.sortedByDescending { it.index }.forEach { line ->
             appendLine(
-                "${line.index}爻 ${line.sixGod.displayName()} ${line.sixKin.displayName()} " +
+                "${linePositionName(line.index)} ${line.sixGod.displayName()} ${line.sixKin.displayName()} " +
                     "${line.naJia.displayName()} ${line.element.displayName()} " +
                     "${if (line.isWorld) "世" else if (line.isResponse) "应" else ""} " +
                     "${if (line.isMoving) "动" else "静"} " +
@@ -54,7 +58,7 @@ object AiChartPromptBuilder {
         appendLine()
         appendLine("【检索到的资料片段】")
         if (lock.knowledgeSnippets.isEmpty()) {
-            appendLine("当前未检索到本地刘昌明资料片段，请明确说明资料不足。")
+            appendLine("当前未检索到本地刘昌明资料片段，请明确说明资料不足，仅可根据排盘结构作基础说明。")
         } else {
             lock.knowledgeSnippets.take(10).forEachIndexed { index, item ->
                 appendLine("${index + 1}. 来源：${item.sourceName}")
@@ -67,6 +71,7 @@ object AiChartPromptBuilder {
         appendLine("【命中断语】")
         appendLayer("主结果断语", report?.mainResult.orEmpty())
         appendLayer("过程条件断语", report?.processOrCondition.orEmpty())
+        appendLayer("风险提示断语", report?.riskWarnings.orEmpty())
         appendLayer("旁参考断语", report?.sideReference.orEmpty())
         appendLine()
         appendLine("【输出要求】")
@@ -79,10 +84,10 @@ object AiChartPromptBuilder {
         appendLine("七、资料不足或不能断处")
         appendLine()
         appendLine("【禁止项】")
-        appendLine("1. 不得分析无关占类；")
-        appendLine("2. 不得把旁参考当主判断；")
-        appendLine("3. 不得脱离资料乱编；")
-        appendLine("4. 不得把过程象当最终结果；")
+        appendLine("1. 不得分析无关占类。")
+        appendLine("2. 不得把旁参考当主判断。")
+        appendLine("3. 不得脱离资料乱编。")
+        appendLine("4. 不得把过程象当最终结果。")
         appendLine("5. 不得忽略资料不足。")
     }
 
@@ -93,7 +98,7 @@ object AiChartPromptBuilder {
         } else {
             items.take(8).forEachIndexed { index, item ->
                 appendLine("${index + 1}. ${item.rule.originalText}")
-                appendLine("   来源：${item.rule.sourceName}；理由：${item.lockReason}")
+                appendLine("   来源：${item.rule.sourceName}；分层：${item.matchLayer.title}；理由：${item.lockReason}")
             }
         }
     }

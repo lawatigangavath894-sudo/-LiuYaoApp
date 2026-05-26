@@ -38,7 +38,7 @@ class LiuYaoKnowledgeSearchService(private val context: Context) {
     ): List<String> = buildList {
         add(category.displayName())
         addAll(categoryAliases(category))
-        addAll(question.split(Regex("""[，。！？、\s]+""")).filter { it.length >= 2 })
+        addAll(question.split(Regex("""[\s，。！？、；：,.!?]+""")).filter { it.length >= 2 })
         addAll(extraKeywords)
         addAll(SixKin.entries.map { it.displayName() })
         addAll(listOf("用神", "世爻", "应爻", "动爻", "变爻", "伏神", "飞神"))
@@ -47,7 +47,7 @@ class LiuYaoKnowledgeSearchService(private val context: Context) {
         if (chart.movingLines.isNotEmpty()) add("动爻")
         add(chart.originalHexagram.name)
         chart.changedHexagram?.name?.let { add(it) }
-        addAll(listOf("成", "不成", "过", "不过", "录取", "不录取", "找到", "找不到", "吉", "凶"))
+        addAll(listOf("成", "不成", "过", "不过", "录取", "不录取", "怀孕", "未孕", "找到", "找不到", "来", "不来", "安", "凶", "吉"))
     }.map { it.trim() }.filter { it.isNotBlank() }.distinct()
 
     private fun searchAssets(keywords: List<String>, cap: Int): List<KnowledgeSnippet> {

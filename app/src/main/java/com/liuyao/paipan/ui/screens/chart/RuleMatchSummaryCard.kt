@@ -22,10 +22,6 @@ import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
-/**
- * 断语摘要卡:三类计数 + 冲突提示。
- * 当"支持成"与"支持不成"并存时,明确提示不给唯一结论(原则:冲突要同时展示)。
- */
 @Composable
 fun RuleMatchSummaryCard(report: MatchReport, modifier: Modifier = Modifier) {
     Column(modifier.padding(horizontal = Spacing.pageHorizontal)) {
@@ -36,19 +32,25 @@ fun RuleMatchSummaryCard(report: MatchReport, modifier: Modifier = Modifier) {
                     CountItem(ResultBucket.SUPPORT_NO, report.supportNo.size)
                     CountItem(ResultBucket.NEUTRAL, report.neutral.size)
                 }
+                Text(
+                    "分层：主结果 ${report.mainResult.size}，过程/条件 ${report.processOrCondition.size}，风险 ${report.riskWarnings.size}，旁参考 ${report.sideReference.size}",
+                    style = IOSTextStyles.Footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
                 if (report.hasConflict) {
                     Text(
-                        "卦中同时存在支持成与支持不成的断语,需结合具体条件与轻重权衡,不宜只取单一结论。",
+                        "卦中同时存在支持成与支持不成的断语，需要结合关键爻、旺衰与资料片段分轻重，不宜只取单条断语。",
                         style = IOSTextStyles.Footnote,
                         color = AppTheme.colors.secondaryLabel,
-                        modifier = Modifier.padding(top = Spacing.md),
+                        modifier = Modifier.padding(top = Spacing.sm),
                     )
                 } else if (report.all.isEmpty()) {
                     Text(
-                        "暂无命中断语。可在「断语库」补充规则后再看。",
+                        "暂无命中断语。可在断语库导入资料后，系统会按当前占事类别、主变量、用神和关键爻重新匹配。",
                         style = IOSTextStyles.Footnote,
                         color = AppTheme.colors.tertiaryLabel,
-                        modifier = Modifier.padding(top = Spacing.md),
+                        modifier = Modifier.padding(top = Spacing.sm),
                     )
                 }
             }

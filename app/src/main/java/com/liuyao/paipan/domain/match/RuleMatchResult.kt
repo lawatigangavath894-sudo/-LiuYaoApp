@@ -23,6 +23,9 @@ data class RuleMatchResult(
     val relatedUsefulGod: SixKin? = null,
     val relatedLineIndex: Int? = null,
     val excludeReason: String? = null,
+    val relevanceReason: String = "",
+    val conflictReason: String? = null,
+    val confidenceLevel: String = "中",
 ) {
     val bucket: ResultBucket
         get() = when (polarity) {
@@ -48,5 +51,7 @@ data class MatchReport(
     val mainResult: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.MAIN_RESULT }
     val processOrCondition: List<RuleMatchResult>
         get() = all.filter { it.matchLayer == MatchLayer.PROCESS || it.matchLayer == MatchLayer.CONDITION }
+    val riskWarnings: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.RISK_WARNING }
     val sideReference: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.SIDE_REFERENCE }
+    val insufficientData: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.INSUFFICIENT_DATA }
 }

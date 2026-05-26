@@ -41,43 +41,52 @@ class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
         analyzedFor = chart.id
         _ui.update { it.copy(isLoading = true, knowledgeMessage = null) }
         viewModelScope.launch {
-            val rules = repo.loadAllRules()
-            val mainVariable = QuestionFocusResolver.resolve(chart.question)
-            val snippets = knowledgeSearch.searchRelevantSnippets(
-                category = category,
-                question = chart.question,
-                chart = chart,
-                rules = rules,
-                extraKeywords = QuestionFocusResolver.resultKeywords(mainVariable),
-                limit = 10,
-            )
-            val lock = AnalysisLockResolver.resolve(chart, category, snippets)
-            val report = if (rules.isEmpty()) {
-                MatchReport(emptyList(), emptyList(), emptyList())
-            } else {
-                val relMap = repo.reliabilityMap()
-                val matched = RuleMatcher.match(
-                    chart = chart,
+            runCatching {
+                val rules = repo.loadAllRules()
+                val mainVariable = QuestionFocusResolver.resolve(chart.question)
+                val snippets = knowledgeSearch.searchRelevantSnippets(
                     category = category,
+                    question = chart.question,
+                    chart = chart,
                     rules = rules,
-                    reliabilityProvider = { ruleId -> relMap[ruleId] ?: 1.0 },
-                    lock = lock,
+                    extraKeywords = QuestionFocusResolver.resultKeywords(mainVariable),
+                    limit = 10,
                 )
-                val now = System.currentTimeMillis() / 1000
-                matched.all.forEach { repo.markRuleUsed(it.rule.id, now) }
-                matched
-            }
-            _ui.update {
-                it.copy(
-                    report = report,
-                    analysisLock = lock,
-                    isLoading = false,
-                    knowledgeMessage = when {
-                        snippets.isEmpty() -> "未检索到刘昌明资料片段。"
-                        rules.isEmpty() -> "断语库为空，仅生成分析锁定与资料片段。"
-                        else -> null
-                    },
-                )
+                val lock = AnalysisLockResolver.resolve(chart, category, snippets)
+                val report = if (rules.isEmpty()) {
+                    MatchReport(emptyList(), emptyList(), emptyList())
+                } else {
+                    val relMap = repo.reliabilityMap()
+                    val matched = RuleMatcher.match(
+                        chart = chart,
+                        category = category,
+                        rules = rules,
+                        reliabilityProvider = { ruleId -> relMap[ruleId] ?: 1.0 },
+                        lock = lock,
+                    )
+                    val now = System.currentTimeMillis() / 1000
+                    matched.all.forEach { repo.markRuleUsed(it.rule.id, now) }
+                    matched
+                }
+                _ui.update {
+                    it.copy(
+                        report = report,
+                        analysisLock = lock,
+                        isLoading = false,
+                        knowledgeMessage = when {
+                            snippets.isEmpty() -> "未检索到刘昌明资料片段，当前使用基础锁定。"
+                            rules.isEmpty() -> "断语库为空，仅生成分析锁定与资料片段。"
+                            else -> null
+                        },
+                    )
+                }
+            }.onFailure { error ->
+                _ui.update {
+                    it.copy(
+                        isLoading = false,
+                        knowledgeMessage = "分析生成失败：${error.message ?: "未知错误"}",
+                    )
+                }
             }
         }
     }

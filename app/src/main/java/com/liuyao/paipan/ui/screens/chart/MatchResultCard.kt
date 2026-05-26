@@ -1,6 +1,5 @@
 package com.liuyao.paipan.ui.screens.chart
 
-import com.liuyao.paipan.domain.model.yaoPositionName
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.liuyao.paipan.domain.analysis.displayName
 import com.liuyao.paipan.domain.match.RuleMatchResult
 import com.liuyao.paipan.domain.rule.RuleCondition
 import com.liuyao.paipan.ui.components.IOSBadge
@@ -26,10 +26,6 @@ import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
-/**
- * 单条断语匹配结果卡。收起态精简(原文 + 占类 + 分数 + 收藏);
- * 点击展开显示白话、命中/未命中/排除条件、相关爻位、来源。
- */
 @Composable
 fun MatchResultCard(
     result: RuleMatchResult,
@@ -39,7 +35,6 @@ fun MatchResultCard(
     var expanded by remember { mutableStateOf(false) }
     IOSCard {
         Column {
-            // 头部:原文 + 收藏
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Text(
                     result.rule.originalText,
@@ -55,24 +50,26 @@ fun MatchResultCard(
                 )
             }
 
-            // 占类 + 分数
             Row(
                 Modifier.padding(top = Spacing.xs),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IOSBadge(result.rule.category.cn)
+                IOSBadge(result.rule.category.displayName())
+                IOSBadge(result.matchLayer.title)
+                IOSBadge("置信${result.confidenceLevel}")
                 ScorePill(result.score)
-                if (result.relatedLineIndexes.isNotEmpty()) {
-                    Text(
-                        "爻位 " + result.relatedLineIndexes.joinToString(",") { yaoPositionName(it) },
-                        style = IOSTextStyles.Caption,
-                        color = AppTheme.colors.secondaryLabel,
-                    )
-                }
             }
 
-            // 白话(收起态也给一行,克制)
+            if (result.relatedLineIndexes.isNotEmpty()) {
+                Text(
+                    "关联爻位：${result.relatedLineIndexes.joinToString("、")}",
+                    style = IOSTextStyles.Caption,
+                    color = AppTheme.colors.secondaryLabel,
+                    modifier = Modifier.padding(top = Spacing.xs),
+                )
+            }
+
             Text(
                 result.rule.plainExplanation,
                 style = IOSTextStyles.Subhead,
@@ -90,6 +87,30 @@ fun MatchResultCard(
                     if (result.excludedByConditions.isNotEmpty()) {
                         ConditionBlock("排除条件", result.excludedByConditions, AppTheme.colors.clash)
                     }
+                    if (result.relevanceReason.isNotBlank()) {
+                        Text(
+                            "关联依据：${result.relevanceReason}",
+                            style = IOSTextStyles.Caption,
+                            color = AppTheme.colors.secondaryLabel,
+                            modifier = Modifier.padding(top = Spacing.sm),
+                        )
+                    }
+                    if (result.lockReason.isNotBlank()) {
+                        Text(
+                            "分层理由：${result.lockReason}",
+                            style = IOSTextStyles.Caption,
+                            color = AppTheme.colors.secondaryLabel,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
+                    if (result.conflictReason != null) {
+                        Text(
+                            "冲突提示：${result.conflictReason}",
+                            style = IOSTextStyles.Caption,
+                            color = AppTheme.colors.accent,
+                            modifier = Modifier.padding(top = Spacing.xs),
+                        )
+                    }
                     Text(
                         "来源 · ${result.rule.sourceName}",
                         style = IOSTextStyles.Caption,
@@ -99,7 +120,6 @@ fun MatchResultCard(
                 }
             }
 
-            // 展开/收起提示
             Text(
                 if (expanded) "收起" else "展开详情",
                 style = IOSTextStyles.Footnote,
@@ -126,10 +146,10 @@ private fun ConditionBlock(label: String, conditions: List<RuleCondition>, accen
 
 @Composable
 private fun ScorePill(score: Int) {
-    val c = when {
+    val color = when {
         score >= 80 -> AppTheme.colors.world
         score >= 60 -> AppTheme.colors.combine
         else -> AppTheme.colors.secondaryLabel
     }
-    IOSBadge("匹配 $score", container = c.copy(alpha = 0.12f), content = c)
+    IOSBadge("匹配 $score", container = color.copy(alpha = 0.12f), content = color)
 }

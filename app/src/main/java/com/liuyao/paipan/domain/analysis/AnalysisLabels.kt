@@ -103,3 +103,12 @@ fun Palace.displayName(): String = when (this) {
     Palace.KUN_PALACE -> "坤宫"
     Palace.DUI_PALACE -> "兑宫"
 }
+
+fun linePositionName(index: Int): String = when (index) {
+    6 -> "上爻"
+    5 -> "五爻"
+    4 -> "四爻"
+    3 -> "三爻"
+    2 -> "二爻"
+    else -> "初爻"
+}

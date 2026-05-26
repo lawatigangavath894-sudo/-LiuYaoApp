@@ -80,7 +80,9 @@ fun RuleLayerSection(
         MatchLayer.MAIN_RESULT -> AppTheme.colors.world
         MatchLayer.PROCESS -> AppTheme.colors.combine
         MatchLayer.CONDITION -> AppTheme.colors.accent
+        MatchLayer.RISK_WARNING -> AppTheme.colors.clash
         MatchLayer.SIDE_REFERENCE -> AppTheme.colors.secondaryLabel
+        MatchLayer.INSUFFICIENT_DATA -> AppTheme.colors.tertiaryLabel
     }
     Column(modifier.padding(horizontal = Spacing.pageHorizontal)) {
         Row(

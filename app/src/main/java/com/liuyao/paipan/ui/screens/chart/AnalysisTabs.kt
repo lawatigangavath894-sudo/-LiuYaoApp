@@ -6,8 +6,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,12 +15,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.liuyao.paipan.domain.analysis.AnalysisItem
 import com.liuyao.paipan.domain.analysis.AnalysisLock
+import com.liuyao.paipan.domain.analysis.CaseSimilarityEngine
 import com.liuyao.paipan.domain.analysis.MatchLayer
+import com.liuyao.paipan.domain.analysis.MethodAnalysisEngine
+import com.liuyao.paipan.domain.analysis.ShenShaAnalysisEngine
+import com.liuyao.paipan.domain.analysis.StrengthAnalysisEngine
+import com.liuyao.paipan.domain.analysis.XiangAnalysisEngine
 import com.liuyao.paipan.domain.analysis.displayName
 import com.liuyao.paipan.domain.match.MatchReport
 import com.liuyao.paipan.domain.model.LiuYaoChart
-import com.liuyao.paipan.domain.model.YaoLine
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSSegmentedControl
 import com.liuyao.paipan.ui.theme.AppTheme
@@ -38,7 +41,7 @@ fun AnalysisTabs(
     onToggleFavorite: (String) -> Unit = {},
 ) {
     var selected by remember { mutableIntStateOf(0) }
-    val tabs = listOf("神煞", "旺衰", "批注", "案例", "占法", "取象", "断语", "反馈")
+    val tabs = listOf("神煞", "旺衰", "批注", "案例", "占法", "取象", "断语", "AI", "反馈")
 
     Column {
         Column(Modifier.padding(horizontal = Spacing.pageHorizontal)) {
@@ -53,7 +56,6 @@ fun AnalysisTabs(
                 selectedIndex = selected,
                 onSelect = { selected = it },
                 scrollable = true,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
 
@@ -69,8 +71,9 @@ fun AnalysisTabs(
                 "批注" -> AnnotationContent(lock)
                 "案例" -> CaseContent(lock)
                 "占法" -> MethodContent(lock)
-                "取象" -> ImageContent(chart, lock)
+                "取象" -> XiangContent(chart, lock)
                 "断语" -> RuleContent(report, favoriteIds, onToggleFavorite)
+                "AI" -> AiContent(lock, report)
                 "反馈" -> FeedbackPanel()
             }
         }
@@ -79,92 +82,117 @@ fun AnalysisTabs(
 
 @Composable
 private fun ShenShaContent(chart: LiuYaoChart?, lock: AnalysisLock?) {
-    val lines = lockedLines(chart, lock)
-    BulletContent(
-        if (lines.isEmpty()) listOf("暂无可分析神煞：请先完成排盘。") else lines.map { line ->
-            "${positionName(line.index)}：${line.sixGod.displayName()}，与${keyReason(line, lock)}相关。"
-        },
+    if (chart == null || lock == null) {
+        ItemContent(emptyList(), "暂无神煞分析：请先完成排盘和分析锁定。")
+        return
+    }
+    ItemContent(
+        items = ShenShaAnalysisEngine.analyze(chart, lock),
+        empty = "没有与当前占事、主用神或关键爻相关的神煞；不展示神煞大全。",
     )
 }
 
 @Composable
 private fun StrengthContent(chart: LiuYaoChart?, lock: AnalysisLock?) {
-    val lines = lockedLines(chart, lock)
-    BulletContent(
-        if (lines.isEmpty()) listOf("暂无旺衰分析：未找到关键爻。") else lines.map { line ->
-            val flags = buildList {
-                add("旺衰${line.status.strength.displayName()}")
-                if (line.status.isVoid) add("旬空")
-                if (line.status.isMonthBroken) add("月破")
-                if (line.status.isDayClashed) add("日冲")
-                if (line.status.isCombined) add("合")
-                if (line.status.isClashed) add("冲")
-                if (line.status.isPunished) add("刑")
-                if (line.status.isHarmed) add("害")
-            }.joinToString("、")
-            "${positionName(line.index)} ${line.sixKin.displayName()}：$flags。关键原因：${keyReason(line, lock)}。"
-        },
+    if (chart == null || lock == null) {
+        ItemContent(emptyList(), "暂无旺衰分析：未找到关键爻。")
+        return
+    }
+    ItemContent(
+        items = StrengthAnalysisEngine.analyze(chart, lock),
+        empty = "没有可分析的主用神、世应、动变、伏飞或空破冲合关键爻。",
     )
 }
 
 @Composable
 private fun AnnotationContent(lock: AnalysisLock?) {
-    BulletContent(
+    val items = lock?.let {
         listOf(
-            lock?.lockReason ?: "分析锁定生成中。",
-            "批注将绑定当前占事、主变量与关键爻；完整编辑将在后续版本开放。",
-        ),
-    )
+            AnalysisItem(
+                title = "当前批注上下文",
+                body = "${it.category.displayName()} / ${it.mainVariable}；关键爻：${it.keyLineIndexes.joinToString("、").ifBlank { "未定" }}。",
+                reason = "批注绑定当前 chartId=${it.chartId} 与 AnalysisLock；完整关键爻/断语绑定编辑后续开放。",
+                layer = MatchLayer.SIDE_REFERENCE,
+            ),
+        )
+    }.orEmpty()
+    ItemContent(items, "暂无批注上下文。")
 }
 
 @Composable
 private fun CaseContent(lock: AnalysisLock?) {
-    BulletContent(
-        listOf(
-            "仅检索同类占事、相同主变量、相近用神结构的案例。",
-            if (lock == null) "当前暂无锁定结果。" else "暂无同类案例：${lock.category.displayName()} / ${lock.mainVariable}。",
-        ),
-    )
+    if (lock == null) {
+        ItemContent(emptyList(), "暂无案例匹配：请先完成分析锁定。")
+    } else {
+        ItemContent(CaseSimilarityEngine.placeholder(lock), "暂无同类案例。")
+    }
 }
 
 @Composable
 private fun MethodContent(lock: AnalysisLock?) {
-    val snippets = lock?.knowledgeSnippets.orEmpty()
-    BulletContent(
-        if (snippets.isEmpty()) {
-            listOf("资料不足：未导入或未命中刘昌明资料，暂不展示泛化占法。")
-        } else {
-            snippets.take(3).map { "${it.sourceName}：${it.originalText.take(90)}" }
-        },
-    )
+    if (lock == null) {
+        ItemContent(emptyList(), "暂无占法资料：请先完成分析锁定。")
+    } else {
+        ItemContent(
+            MethodAnalysisEngine.analyze(lock),
+            "未检索到当前占类的占法资料，请导入相关断语资料。",
+        )
+    }
 }
 
 @Composable
-private fun ImageContent(chart: LiuYaoChart?, lock: AnalysisLock?) {
-    val lines = lockedLines(chart, lock)
-    BulletContent(
-        if (lines.isEmpty()) listOf("资料不足：未找到关键爻，暂不展示泛化取象。") else lines.map { line ->
-            val hidden = line.hiddenSpirit?.let { "，伏神${it.sixKin.displayName()}${it.naJia.stem.displayName()}${it.naJia.branch.displayName()}" }.orEmpty()
-            val flying = line.flyingSpirit?.let { "，飞神${it.sixKin.displayName()}${it.naJia.stem.displayName()}${it.naJia.branch.displayName()}" }.orEmpty()
-            "${positionName(line.index)}：${line.sixKin.displayName()}、${line.sixGod.displayName()}、${line.naJia.stem.displayName()}${line.naJia.branch.displayName()}${hidden}${flying}。"
-        },
-    )
+private fun XiangContent(chart: LiuYaoChart?, lock: AnalysisLock?) {
+    if (chart == null || lock == null) {
+        ItemContent(emptyList(), "暂无取象：请先完成排盘和分析锁定。")
+    } else {
+        ItemContent(
+            XiangAnalysisEngine.analyze(chart, lock),
+            "未找到当前占事相关的关键爻取象；不展示六神、六亲、地支大全。",
+        )
+    }
 }
 
 @Composable
-private fun BulletContent(items: List<String>) {
+private fun AiContent(lock: AnalysisLock?, report: MatchReport?) {
+    val items = lock?.let {
+        listOf(
+            AnalysisItem(
+                title = "AI 解析上下文已锁定",
+                body = "Prompt 将包含占事类别、问题、主变量、主用神、世应、关键爻、旺衰摘要、神煞摘要、主结果断语、过程条件断语和最多 10 条资料片段。",
+                reason = "断语 ${report?.all?.size ?: 0} 条；资料片段 ${it.knowledgeSnippets.size} 条；不会发送整本书或无关断语。",
+                layer = MatchLayer.MAIN_RESULT,
+            ),
+        )
+    }.orEmpty()
+    ItemContent(items, "AI 解析需要先生成 AnalysisLock。")
+}
+
+@Composable
+private fun ItemContent(items: List<AnalysisItem>, empty: String) {
     IOSGroupedSection {
         item {
             Column(Modifier.padding(Spacing.cardPadding)) {
                 if (items.isEmpty()) {
-                    Text("暂无内容", style = IOSTextStyles.Subhead, color = AppTheme.colors.tertiaryLabel)
+                    Text(empty, style = IOSTextStyles.Subhead, color = AppTheme.colors.tertiaryLabel)
                 } else {
-                    items.forEachIndexed { i, s ->
+                    items.forEachIndexed { index, item ->
                         Text(
-                            "· $s",
+                            item.title,
                             style = IOSTextStyles.Subhead,
                             color = AppTheme.colors.label,
-                            modifier = Modifier.padding(top = if (i == 0) 0.dp else Spacing.sm),
+                            modifier = Modifier.padding(top = if (index == 0) 0.dp else Spacing.md),
+                        )
+                        Text(
+                            item.body,
+                            style = IOSTextStyles.Footnote,
+                            color = AppTheme.colors.secondaryLabel,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                        Text(
+                            "依据：${item.reason}",
+                            style = IOSTextStyles.Caption,
+                            color = AppTheme.colors.tertiaryLabel,
+                            modifier = Modifier.padding(top = 2.dp),
                         )
                     }
                 }
@@ -181,7 +209,7 @@ private fun RuleContent(
 ) {
     if (report == null) {
         Column(Modifier.padding(horizontal = Spacing.pageHorizontal)) {
-            Text("正在分析断语...", style = IOSTextStyles.Subhead, color = AppTheme.colors.tertiaryLabel)
+            Text("正在按分析锁定匹配断语...", style = IOSTextStyles.Subhead, color = AppTheme.colors.tertiaryLabel)
         }
         return
     }
@@ -189,35 +217,8 @@ private fun RuleContent(
         RuleMatchSummaryCard(report)
         RuleLayerSection(MatchLayer.MAIN_RESULT, report.mainResult, favoriteIds, onToggleFavorite)
         RuleLayerSection(MatchLayer.PROCESS, report.processOrCondition, favoriteIds, onToggleFavorite)
+        RuleLayerSection(MatchLayer.RISK_WARNING, report.riskWarnings, favoriteIds, onToggleFavorite)
         RuleLayerSection(MatchLayer.SIDE_REFERENCE, report.sideReference, favoriteIds, onToggleFavorite)
+        RuleLayerSection(MatchLayer.INSUFFICIENT_DATA, report.insufficientData, favoriteIds, onToggleFavorite)
     }
-}
-
-private fun lockedLines(chart: LiuYaoChart?, lock: AnalysisLock?): List<YaoLine> {
-    if (chart == null) return emptyList()
-    val indexes = lock?.keyLineIndexes.orEmpty().ifEmpty {
-        listOf(chart.worldLineIndex, chart.responseLineIndex) + chart.movingLines.map { it.index }
-    }.distinct()
-    return chart.lines.filter { it.index in indexes }
-}
-
-private fun keyReason(line: YaoLine, lock: AnalysisLock?): String = when {
-    lock == null -> "当前排盘"
-    line.index == lock.worldLineIndex -> "世爻本人"
-    line.index == lock.responseLineIndex -> "应爻对方"
-    line.index in lock.movingLineIndexes -> "动爻变化"
-    line.sixKin == lock.primaryUsefulGod -> "主用神${line.sixKin.displayName()}"
-    line.sixKin in lock.secondaryUsefulGods -> "辅助用神${line.sixKin.displayName()}"
-    line.index in lock.hiddenSpiritLineIndexes -> "伏神"
-    line.index in lock.flyingSpiritLineIndexes -> "飞神"
-    else -> "分析锁定"
-}
-
-private fun positionName(index: Int): String = when (index) {
-    6 -> "上爻"
-    5 -> "五爻"
-    4 -> "四爻"
-    3 -> "三爻"
-    2 -> "二爻"
-    else -> "初爻"
 }
