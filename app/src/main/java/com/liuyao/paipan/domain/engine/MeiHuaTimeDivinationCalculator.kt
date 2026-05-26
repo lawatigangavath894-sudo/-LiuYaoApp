@@ -17,14 +17,34 @@ data class MeiHuaTimeResult(
 )
 
 object MeiHuaTimeDivinationCalculator {
+    /**
+     * 梅花易数时间起卦(标准规则,正时与择时共用)。
+     *
+     * 不直接使用公历 year/month/day/hour 数值,而是换算:
+     *  - 年支数:子=1…亥=12(由地支序 +1)
+     *  - 农历月数:正月=1…十二月=12(闰月按本月数字)
+     *  - 农历日数:初一=1…三十=30
+     *  - 时辰数:子时=1…亥时=12(每两小时一支,子时含 23:00–00:59)
+     *
+     * 上卦 =(年支数+农历月+农历日) % 8,余 0 取 8
+     * 下卦 =(年支数+农历月+农历日+时辰数) % 8,余 0 取 8
+     * 动爻 =(年支数+农历月+农历日+时辰数) % 6,余 0 取 6
+     * 八卦数:1乾 2兑 3离 4震 5巽 6坎 7艮 8坤;动爻自下而上 1初…6上。
+     */
     fun calculate(dateTime: LocalDateTime): MeiHuaTimeResult {
-        val upperNumber = normalizedRemainder(
-            dateTime.year + dateTime.monthValue + dateTime.dayOfMonth,
-            8,
-        )
-        val lowerSeed = dateTime.year + dateTime.monthValue + dateTime.dayOfMonth + dateTime.hour
-        val lowerNumber = normalizedRemainder(lowerSeed, 8)
-        val movingLine = normalizedRemainder(lowerSeed, 6)
+        // 真实农历信息(经 6tail lunar)。年支数、农历月、农历日、时辰数。
+        val lunar = CalendarConversionService.lunarInfoOf(dateTime)
+        val yearBranchNumber = CalendarConversionService.yearBranchNumber(dateTime) // 子=1..亥=12
+        val lunarMonth = lunar.lunarMonth   // 闰月按本月数字
+        val lunarDay = lunar.lunarDay
+        val hourNumber = CalendarConversionService.hourBranchNumber(dateTime) // 子=1..亥=12
+
+        val dateSum = yearBranchNumber + lunarMonth + lunarDay
+        val fullSum = dateSum + hourNumber
+
+        val upperNumber = normalizedRemainder(dateSum, 8)
+        val lowerNumber = normalizedRemainder(fullSum, 8)
+        val movingLine = normalizedRemainder(fullSum, 6)
         val upper = trigramOf(upperNumber)
         val lower = trigramOf(lowerNumber)
         return MeiHuaTimeResult(

@@ -30,6 +30,8 @@ data class ChartUiState(
  * 起卦/排盘的用户意图。Cast 页通过这些 Action 驱动 ViewModel,不直接碰引擎。
  */
 sealed interface ChartAction {
+    data class BuildChart(val input: ChartInput) : ChartAction
+
     /** 快速起卦:用当前时间随机生成六爻与动爻 */
     data class QuickCast(val question: String) : ChartAction
 
@@ -57,9 +59,18 @@ class ChartViewModel : ViewModel() {
 
     fun dispatch(action: ChartAction) {
         when (action) {
+            is ChartAction.BuildChart -> buildChart(action.input)
             is ChartAction.QuickCast -> quickCast(action.question)
             is ChartAction.ManualCast -> manualCast(action.question, action.yangFlags, action.moving)
             ChartAction.Clear -> _ui.update { ChartUiState() }
+        }
+    }
+
+    private fun buildChart(input: ChartInput) {
+        _ui.update { it.copy(isLoading = true) }
+        val result = LiuYaoChartEngine.build(input)
+        _ui.update {
+            it.copy(chart = result.chart, warnings = result.warnings, isLoading = false)
         }
     }
 

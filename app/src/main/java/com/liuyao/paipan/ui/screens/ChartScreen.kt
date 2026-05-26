@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -26,15 +27,16 @@ import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
 /**
- * 排盘页。数据来自 [ChartViewModel] 的状态,由 [LiuYaoChartEngine] 排盘后经
- * [ChartUiMapper] 投影为展示模型。UI 仅渲染,不含任何排盘逻辑。
+ * 鎺掔洏椤点€傛暟鎹潵鑷?[ChartViewModel] 鐨勭姸鎬?鐢?[LiuYaoChartEngine] 鎺掔洏鍚庣粡
+ * [ChartUiMapper] 鎶曞奖涓哄睍绀烘ā鍨嬨€俇I 浠呮覆鏌?涓嶅惈浠讳綍鎺掔洏閫昏緫銆?
  *
- * 结构(自上而下):Large Title 占事 → 时间卡 → 卦象卡 → 六爻盘 → 分析区。
+ * 缁撴瀯(鑷笂鑰屼笅):Large Title 鍗犱簨 鈫?鏃堕棿鍗?鈫?鍗﹁薄鍗?鈫?鍏埢鐩?鈫?鍒嗘瀽鍖恒€?
  */
 @Composable
 fun ChartScreen(
     vm: ChartViewModel,
     onBack: () -> Unit,
+    onAiAnalyze: (String) -> Unit = {},
 ) {
     val state by vm.ui.collectAsStateWithLifecycle()
     val chart = state.chart
@@ -48,7 +50,7 @@ fun ChartScreen(
         }
     }
 
-    val title = chart?.question ?: "排盘"
+    val title = chart?.question ?: "鎺掔洏"
     IOSDetailScaffold(title = title, onBack = onBack) { padding ->
         if (chart == null) {
             EmptyChart(padding)
@@ -75,7 +77,12 @@ fun ChartScreen(
                     var saved by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
                     androidx.compose.foundation.layout.Column(
                         Modifier.padding(horizontal = Spacing.pageHorizontal),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
+                        com.liuyao.paipan.ui.components.IOSPrimaryButton(
+                            text = "AI 瑙ｆ瀽",
+                            onClick = { onAiAnalyze(chart.id) },
+                        )
                         com.liuyao.paipan.ui.components.IOSPrimaryButton(
                             text = if (saved) "已保存为案例 ✓" else "保存为案例",
                             enabled = !saved,

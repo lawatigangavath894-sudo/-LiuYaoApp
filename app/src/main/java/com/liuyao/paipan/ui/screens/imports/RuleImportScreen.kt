@@ -2,6 +2,7 @@ package com.liuyao.paipan.ui.screens.imports
 
 import android.net.Uri
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ fun RuleImportScreen(
     onBack: () -> Unit,
     onParsed: () -> Unit,
 ) {
+    BackHandler { onBack() }
     val state by vm.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
 

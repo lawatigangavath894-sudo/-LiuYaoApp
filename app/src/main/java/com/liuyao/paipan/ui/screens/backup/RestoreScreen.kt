@@ -1,6 +1,7 @@
 package com.liuyao.paipan.ui.screens.backup
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ fun RestoreScreen(
     vm: BackupViewModel,
     onBack: () -> Unit,
 ) {
+    BackHandler { onBack() }
     val state by vm.ui.collectAsStateWithLifecycle()
     var mode by remember { mutableStateOf(ImportMode.MERGE) }
     var confirmReplace by remember { mutableStateOf(false) }

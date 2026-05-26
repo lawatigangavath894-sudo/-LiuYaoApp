@@ -69,5 +69,9 @@ dependencies {
     // DataStore(用户偏好)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // 农历/干支/节气/四柱:6tail lunar(纯 Java,无网络依赖,mavenCentral)。
+    // 唯一日历库,负责公历↔农历、闰月、节气定月、干支日、五鼠遁时柱。
+    implementation("cn.6tail:lunar:1.7.4")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

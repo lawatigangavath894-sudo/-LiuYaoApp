@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MenuBook
@@ -30,27 +32,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.liuyao.paipan.ui.screens.CasesScreen
+import androidx.navigation.navArgument
+import com.liuyao.paipan.ui.screens.AiChatScreen
+import com.liuyao.paipan.ui.screens.AiSettingsScreen
 import com.liuyao.paipan.ui.screens.CaseDetailScreen
-import com.liuyao.paipan.ui.screens.cases.CaseViewModel
-import com.liuyao.paipan.ui.screens.backup.BackupScreen
-import com.liuyao.paipan.ui.screens.backup.RestoreScreen
-import com.liuyao.paipan.ui.screens.backup.BackupViewModel
+import com.liuyao.paipan.ui.screens.CasesScreen
 import com.liuyao.paipan.ui.screens.CastScreen
 import com.liuyao.paipan.ui.screens.ChartScreen
 import com.liuyao.paipan.ui.screens.HomeScreen
-import com.liuyao.paipan.ui.screens.RulesScreen
 import com.liuyao.paipan.ui.screens.RuleDetailScreen
 import com.liuyao.paipan.ui.screens.RuleEditScreen
+import com.liuyao.paipan.ui.screens.RulesScreen
 import com.liuyao.paipan.ui.screens.SettingsScreen
-import com.liuyao.paipan.ui.screens.imports.RuleImportScreen
+import com.liuyao.paipan.ui.screens.backup.BackupScreen
+import com.liuyao.paipan.ui.screens.backup.BackupViewModel
+import com.liuyao.paipan.ui.screens.backup.RestoreScreen
+import com.liuyao.paipan.ui.screens.cases.CaseViewModel
 import com.liuyao.paipan.ui.screens.imports.ImportPreviewScreen
+import com.liuyao.paipan.ui.screens.imports.RuleImportScreen
 import com.liuyao.paipan.ui.screens.imports.RuleImportViewModel
 import com.liuyao.paipan.ui.theme.AppTheme
 
@@ -58,6 +62,7 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 
 private val tabs = listOf(
     Tab(Route.Home.route, "首页", Icons.Filled.Home),
+    Tab(Route.AiChat.route, "AI 对话", Icons.Filled.Chat),
     Tab(Route.Rules.route, "断语", Icons.Filled.MenuBook),
     Tab(Route.Cases.route, "案例", Icons.Filled.Inbox),
     Tab(Route.Settings.route, "设置", Icons.Filled.Settings),
@@ -82,8 +87,29 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
             composable(Route.Home.route) {
                 HomeScreen(
                     onCast = { nav.navigate(Route.Cast.route) },
+                    onOpenAi = { nav.navigate(Route.AiChat.create()) },
+                    onOpenRules = { nav.switchTab(Route.Rules.route) },
+                    onOpenCases = { nav.switchTab(Route.Cases.route) },
+                    onOpenSettings = { nav.switchTab(Route.Settings.route) },
                     onOpenChart = { nav.navigate(Route.Chart.route) },
                 )
+            }
+            composable(
+                Route.AiChat.pattern,
+                arguments = listOf(navArgument("chartId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = ""
+                }),
+            ) { entry ->
+                AiChatScreen(
+                    chartId = entry.arguments?.getString("chartId")?.takeIf { it.isNotBlank() },
+                    onBack = { nav.safeBack(Route.Home.route) },
+                    onOpenSettings = { nav.navigate(Route.AiSettings.route) },
+                )
+            }
+            composable(Route.AiSettings.route) {
+                AiSettingsScreen(onBack = { nav.safeBack(Route.Settings.route) })
             }
             composable(Route.Rules.route) {
                 val rulesVm: com.liuyao.paipan.ui.screens.rules.RulesViewModel =
@@ -105,7 +131,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 RuleDetailScreen(
                     vm = rulesVm,
                     ruleId = id,
-                    onBack = { nav.popBackStack() },
+                    onBack = { nav.safeBack(Route.Rules.route) },
                     onEdit = { rid -> nav.navigate(Route.RuleEdit.create(rid)) },
                 )
             }
@@ -121,8 +147,8 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 RuleEditScreen(
                     vm = rulesVm,
                     ruleId = id,
-                    onBack = { nav.popBackStack() },
-                    onSaved = { nav.popBackStack() },
+                    onBack = { nav.safeBack(Route.Rules.route) },
+                    onSaved = { nav.safeBack(Route.Rules.route) },
                 )
             }
             composable(Route.Cases.route) {
@@ -142,7 +168,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     viewModelStoreOwner = nav.getBackStackEntry(Route.Cases.route),
                 )
                 val id = entry.arguments?.getString("caseId").orEmpty()
-                CaseDetailScreen(vm = caseVm, caseId = id, onBack = { nav.popBackStack() })
+                CaseDetailScreen(vm = caseVm, caseId = id, onBack = { nav.safeBack(Route.Cases.route) })
             }
             composable(Route.Settings.route) {
                 val settingsVm: com.liuyao.paipan.ui.screens.settings.SettingsViewModel =
@@ -151,6 +177,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     vm = settingsVm,
                     onImport = { nav.navigate(Route.RuleImport.route) },
                     onBackup = { nav.navigate(Route.Backup.route) },
+                    onAiSettings = { nav.navigate(Route.AiSettings.route) },
                 )
             }
             composable(Route.Backup.route) {
@@ -159,7 +186,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 )
                 BackupScreen(
                     vm = backupVm,
-                    onBack = { nav.popBackStack() },
+                    onBack = { nav.safeBack() },
                     onOpenRestore = { nav.navigate(Route.Restore.route) },
                 )
             }
@@ -167,7 +194,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 val backupVm: BackupViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     viewModelStoreOwner = nav.getBackStackEntry(Route.Backup.route),
                 )
-                RestoreScreen(vm = backupVm, onBack = { nav.popBackStack() })
+                RestoreScreen(vm = backupVm, onBack = { nav.safeBack() })
             }
             composable(Route.RuleImport.route) {
                 val importVm: RuleImportViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
@@ -175,7 +202,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 )
                 RuleImportScreen(
                     vm = importVm,
-                    onBack = { nav.popBackStack() },
+                    onBack = { nav.safeBack() },
                     onParsed = { nav.navigate(Route.ImportPreview.route) },
                 )
             }
@@ -185,14 +212,14 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                 )
                 ImportPreviewScreen(
                     vm = importVm,
-                    onBack = { nav.popBackStack() },
+                    onBack = { nav.safeBack() },
                     onImported = {
-                        // 导入完成,回到设置页
-                        nav.popBackStack(Route.Settings.route, inclusive = false)
+                        if (!nav.popBackStack(Route.Settings.route, inclusive = false)) {
+                            nav.navigate(Route.Settings.route) { launchSingleTop = true }
+                        }
                     },
                 )
             }
-
             composable(Route.Cast.route) {
                 val chartVm: com.liuyao.paipan.ui.screens.chart.ChartViewModel =
                     androidx.lifecycle.viewmodel.compose.viewModel(
@@ -200,7 +227,7 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     )
                 CastScreen(
                     vm = chartVm,
-                    onBack = { nav.popBackStack() },
+                    onBack = { nav.safeBack(Route.Home.route) },
                     onCasted = {
                         nav.navigate(Route.Chart.route) {
                             popUpTo(Route.Cast.route) { inclusive = true }
@@ -213,18 +240,27 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     androidx.lifecycle.viewmodel.compose.viewModel(
                         viewModelStoreOwner = nav.getBackStackEntry(Route.Home.route),
                     )
-                ChartScreen(vm = chartVm, onBack = { nav.popBackStack() })
+                ChartScreen(
+                    vm = chartVm,
+                    onBack = { nav.safeBack(Route.Home.route) },
+                    onAiAnalyze = { chartId -> nav.navigate(Route.AiChat.create(chartId)) },
+                )
             }
         }
     }
 }
 
-/** 一级 Tab 间切换的标准模式:保存/恢复状态,避免堆栈累积 */
 private fun NavHostController.switchTab(route: String) {
     navigate(route) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
+    }
+}
+
+private fun NavHostController.safeBack(fallback: String = Route.Settings.route) {
+    if (!popBackStack()) {
+        navigate(fallback) { launchSingleTop = true }
     }
 }
 
@@ -241,7 +277,7 @@ private fun IosTabBar(current: String?, onSelect: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEach { tab ->
-                val selected = current == tab.route
+                val selected = current == tab.route || (tab.route == Route.AiChat.route && current == Route.AiChat.pattern)
                 val tint = if (selected) AppTheme.colors.accent else AppTheme.colors.tertiaryLabel
                 Column(
                     modifier = Modifier

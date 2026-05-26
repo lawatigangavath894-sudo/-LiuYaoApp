@@ -3,6 +3,11 @@ package com.liuyao.paipan.nav
 /** 路由集中定义,便于后续加参数化路由 */
 sealed class Route(val route: String) {
     data object Home : Route("home")
+    data object AiChat : Route("ai_chat") {
+        const val pattern = "ai_chat?chartId={chartId}"
+        fun create(chartId: String? = null) = if (chartId.isNullOrBlank()) "ai_chat" else "ai_chat?chartId=$chartId"
+    }
+    data object AiSettings : Route("ai_settings")
     data object Rules : Route("rules")
     data object Cases : Route("cases")
     data object Settings : Route("settings")
@@ -39,6 +44,6 @@ sealed class Route(val route: String) {
 
     companion object {
         /** 显示底部 TabBar 的一级路由 */
-        val tabRoutes = setOf(Home.route, Rules.route, Cases.route, Settings.route)
+        val tabRoutes = setOf(Home.route, AiChat.route, Rules.route, Cases.route, Settings.route)
     }
 }

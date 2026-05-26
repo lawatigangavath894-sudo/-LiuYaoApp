@@ -1,24 +1,14 @@
 package com.liuyao.paipan.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,11 +16,13 @@ import com.liuyao.paipan.data.MockData
 import com.liuyao.paipan.data.RecentCast
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSLargeTitleScaffold
+import com.liuyao.paipan.ui.components.IOSListRow
 import com.liuyao.paipan.ui.theme.AppTheme
+import com.liuyao.paipan.ui.theme.IOSTextStyles
+import com.liuyao.paipan.ui.theme.Spacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// —— MVVM:UiState + ViewModel(mock 数据源) ——
 data class HomeUiState(
     val todayGanZhi: String = "",
     val xunKong: String = "",
@@ -47,6 +39,10 @@ class HomeViewModel : ViewModel() {
 @Composable
 fun HomeScreen(
     onCast: () -> Unit,
+    onOpenAi: () -> Unit,
+    onOpenRules: () -> Unit,
+    onOpenCases: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenChart: () -> Unit,
     vm: HomeViewModel = viewModel(),
 ) {
@@ -55,67 +51,67 @@ fun HomeScreen(
     IOSLargeTitleScaffold(title = "六爻") { padding ->
         LazyColumn(
             contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
+            modifier = androidx.compose.ui.Modifier.padding(bottom = Spacing.xxl),
         ) {
-            // 今日干支
             item {
                 IOSGroupedSection(header = "今日") {
                     item {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(state.todayGanZhi, style = MaterialTheme.typography.bodyLarge)
+                        Column(androidx.compose.ui.Modifier.padding(Spacing.cardPadding)) {
+                            Text(state.todayGanZhi, style = IOSTextStyles.Headline, color = AppTheme.colors.label)
                             Text(
                                 state.xunKong,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = IOSTextStyles.Footnote,
                                 color = AppTheme.colors.secondaryLabel,
-                                modifier = Modifier.padding(top = 4.dp),
+                                modifier = androidx.compose.ui.Modifier.padding(top = Spacing.xs),
                             )
                         }
                     }
                 }
             }
-            // 起卦主操作
+
             item {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clickable(onClick = onCast),
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Filled.AddCircle, contentDescription = null, tint = AppTheme.colors.accent)
-                        Text(
-                            "起卦",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = AppTheme.colors.accent,
-                            modifier = Modifier.padding(start = 10.dp),
-                        )
-                    }
+                IOSGroupedSection(header = "核心入口") {
+                    item { IOSListRow("起卦", value = "正时 / 选择时间 / 手动", showChevron = true, onClick = onCast) }
+                    item { IOSListRow("AI 对话", value = "暂未配置", showChevron = true, onClick = onOpenAi) }
+                    item { IOSListRow("断语库", showChevron = true, onClick = onOpenRules) }
+                    item { IOSListRow("案例库", showChevron = true, onClick = onOpenCases) }
+                    item { IOSListRow("设置", showChevron = true, onClick = onOpenSettings) }
                 }
             }
-            // 最近卦
+
             item {
                 IOSGroupedSection(header = "最近") {
-                    state.recent.forEach { c ->
+                    if (state.recent.isEmpty()) {
                         item {
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onOpenChart)
-                                    .padding(16.dp),
-                            ) {
-                                Text(c.question, style = MaterialTheme.typography.bodyLarge)
-                                Row(
-                                    Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                            Text(
+                                "暂无最近排盘",
+                                style = IOSTextStyles.Body,
+                                color = AppTheme.colors.tertiaryLabel,
+                                modifier = androidx.compose.ui.Modifier.padding(Spacing.cardPadding),
+                            )
+                        }
+                    } else {
+                        state.recent.forEach { cast ->
+                            item {
+                                Column(
+                                    androidx.compose.ui.Modifier
+                                        .fillMaxWidth()
+                                        .padding(Spacing.cardPadding)
+                                        .then(androidx.compose.ui.Modifier),
                                 ) {
-                                    Text(c.hex, style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.accent)
-                                    Text(c.time, style = MaterialTheme.typography.labelMedium, color = AppTheme.colors.secondaryLabel)
+                                    IOSListRow(
+                                        title = cast.question,
+                                        value = cast.hex,
+                                        showChevron = true,
+                                        onClick = onOpenChart,
+                                    )
+                                    Row(
+                                        androidx.compose.ui.Modifier.fillMaxWidth().padding(top = Spacing.xs),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Text(cast.time, style = IOSTextStyles.Footnote, color = AppTheme.colors.secondaryLabel)
+                                    }
                                 }
                             }
                         }

@@ -8,7 +8,6 @@ import com.liuyao.paipan.data.ChartMockData
 import com.liuyao.paipan.data.FeedbackData
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSListRow
-import com.liuyao.paipan.ui.components.IOSPrimaryButton
 import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
@@ -22,8 +21,8 @@ import androidx.compose.material3.Text
 fun FeedbackPanel(data: FeedbackData = ChartMockData.feedback) {
     Column {
         IOSGroupedSection(header = "反馈") {
-            item { IOSListRow("最终结果", value = data.result, showChevron = true, onClick = {}) }
-            item { IOSListRow("反馈时间", value = data.time, showChevron = true, onClick = {}) }
+            item { IOSListRow("最终结果", value = data.result) }
+            item { IOSListRow("反馈时间", value = data.time) }
             item {
                 Column(Modifier.padding(horizontal = Spacing.rowHorizontal, vertical = Spacing.rowVertical)) {
                     Text("备注", style = IOSTextStyles.Body, color = AppTheme.colors.label)
@@ -51,7 +50,11 @@ fun FeedbackPanel(data: FeedbackData = ChartMockData.feedback) {
         }
 
         Column(Modifier.padding(horizontal = Spacing.pageHorizontal, vertical = Spacing.sectionGap)) {
-            IOSPrimaryButton("保存反馈", onClick = {})
+            Text(
+                "此处为排盘的反馈预览。如需填写或修改反馈,请在「案例」中打开对应案例进行编辑。",
+                style = IOSTextStyles.Footnote,
+                color = AppTheme.colors.secondaryLabel,
+            )
         }
     }
 }

@@ -55,7 +55,10 @@ class DataStoreManager(private val context: Context) {
         val rd = def.rulesDisplay
         return UserPreferences(
             darkMode = this[Keys.DARK_MODE]?.let { runCatching { DarkMode.valueOf(it) }.getOrNull() } ?: def.darkMode,
-            defaultCastMethod = this[Keys.CAST_METHOD]?.let { runCatching { CastMethodPref.valueOf(it) }.getOrNull() } ?: def.defaultCastMethod,
+            defaultCastMethod = this[Keys.CAST_METHOD]
+                ?.takeUnless { it == "NUMBER" || it == "DIGITAL" || it == "NUMERIC" }
+                ?.let { runCatching { CastMethodPref.valueOf(it) }.getOrNull() }
+                ?: def.defaultCastMethod,
             chartDisplay = ChartDisplayPrefs(
                 showHidden = this[Keys.SHOW_HIDDEN] ?: cd.showHidden,
                 showFlying = this[Keys.SHOW_FLYING] ?: cd.showFlying,

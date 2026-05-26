@@ -69,7 +69,7 @@ private fun ComponentGallery() {
                     Text("分段控件(等分)", style = IOSTextStyles.Footnote, color = AppTheme.colors.secondaryLabel,
                         modifier = Modifier.padding(bottom = Spacing.sm))
                     IOSSegmentedControl(
-                        options = listOf("正时", "手动", "数字"),
+                        options = listOf("正时", "选择时间", "手动"),
                         selectedIndex = segIndex, onSelect = { segIndex = it },
                         modifier = Modifier.fillMaxWidth(),
                     )

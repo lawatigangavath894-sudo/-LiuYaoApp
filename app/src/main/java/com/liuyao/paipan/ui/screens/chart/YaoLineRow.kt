@@ -25,6 +25,7 @@ import com.liuyao.paipan.data.wuXingOf
 import com.liuyao.paipan.ui.components.IOSBadge
 import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
+import com.liuyao.paipan.ui.theme.Radius
 import com.liuyao.paipan.ui.theme.Spacing
 import com.liuyao.paipan.ui.theme.tagColors
 import com.liuyao.paipan.ui.theme.wuXingColor
@@ -163,7 +164,7 @@ private fun YaoSymbol(yang: Boolean, moving: Boolean) {
                 Box(
                     Modifier
                         .size(7.dp)
-                        .clip(RoundedCornerShape(Spacing.badge))
+                        .clip(RoundedCornerShape(Radius.badge))
                         .background(AppTheme.colors.moving),
                 )
             }

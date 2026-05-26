@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +42,7 @@ import com.liuyao.paipan.domain.model.DivinationMode
 import com.liuyao.paipan.domain.model.YinYang
 import com.liuyao.paipan.domain.model.yaoPositionName
 import com.liuyao.paipan.ui.components.IOSBottomSheet
+import com.liuyao.paipan.ui.components.DateTimePickerBottomSheet
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSListRow
@@ -485,97 +485,6 @@ private fun MethodPickerSheet(
                     selected = selected == mode,
                     onClick = { onSelect(mode) },
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DateTimePickerBottomSheet(
-    dateTime: LocalDateTime,
-    onConfirm: (LocalDateTime) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var draft by remember(dateTime) { mutableStateOf(dateTime) }
-    IOSBottomSheet(onDismiss = onDismiss, title = "选择起卦时间") {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                IOSSecondaryButton(text = "今", onClick = { draft = LocalDateTime.now() }, modifier = Modifier.width(64.dp))
-                IOSSecondaryButton(text = "确定", onClick = { onConfirm(draft) }, modifier = Modifier.width(88.dp))
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                PickerTab(text = "公历", selected = true, modifier = Modifier.weight(1f))
-                PickerTab(text = "农历", selected = false, modifier = Modifier.weight(1f))
-                PickerTab(text = "四柱", selected = false, modifier = Modifier.weight(1f))
-            }
-
-            Text(
-                dateTimeFormatter.format(draft),
-                style = IOSTextStyles.Title3,
-                color = AppTheme.colors.label,
-                modifier = Modifier.padding(vertical = Spacing.sm),
-            )
-            DateTimeStepper("年", draft.year.toString(), { draft = draft.minusYears(1) }, { draft = draft.plusYears(1) })
-            DateTimeStepper("月", "%02d".format(draft.monthValue), { draft = draft.minusMonths(1) }, { draft = draft.plusMonths(1) })
-            DateTimeStepper("日", "%02d".format(draft.dayOfMonth), { draft = draft.minusDays(1) }, { draft = draft.plusDays(1) })
-            DateTimeStepper("时", "%02d".format(draft.hour), { draft = draft.minusHours(1) }, { draft = draft.plusHours(1) })
-            DateTimeStepper("分", "%02d".format(draft.minute), { draft = draft.minusMinutes(1) }, { draft = draft.plusMinutes(1) })
-
-            Text(
-                "农历和四柱选择将在后续版本启用，当前先按公历时间起卦。",
-                style = IOSTextStyles.Footnote,
-                color = AppTheme.colors.secondaryLabel,
-                modifier = Modifier.padding(top = Spacing.xs),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PickerTab(text: String, selected: Boolean, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(Radius.badge))
-            .background(if (selected) AppTheme.colors.accentSoft else AppTheme.colors.separator.copy(alpha = 0.35f))
-            .padding(vertical = Spacing.sm),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text,
-            style = IOSTextStyles.CaptionEmphasized,
-            color = if (selected) AppTheme.colors.accent else AppTheme.colors.secondaryLabel,
-        )
-    }
-}
-
-@Composable
-private fun DateTimeStepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(Radius.card),
-        color = AppTheme.colors.cardElevated,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Spacing.rowHorizontal, vertical = Spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(label, style = IOSTextStyles.Body, color = AppTheme.colors.label)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                IOSSecondaryButton(text = "-", onClick = onMinus, modifier = Modifier.width(58.dp), filled = false)
-                Text(value, style = IOSTextStyles.Body, color = AppTheme.colors.label, modifier = Modifier.width(58.dp))
-                IOSSecondaryButton(text = "+", onClick = onPlus, modifier = Modifier.width(58.dp), filled = false)
             }
         }
     }

@@ -27,7 +27,23 @@ data class DraftRule(
     val polarity: RulePolarity = RulePolarity.NEUTRAL,
     val priority: Int = 50,
     val confidenceWeight: Double = 0.5,
+    // —— 本轮新增:导入预览/选择相关 ——
+    val sourceFileName: String = "",
+    val detectedEncoding: String = "",
+    val selectedForImport: Boolean = true,
+    val maybeGarbled: Boolean = false,          // 该条疑似乱码
 ) {
+    /** 导入状态(供预览页展示徽标) */
+    val importStatus: String
+        get() = when {
+            maybeGarbled -> "可能乱码"
+            needsReview -> "待确认"
+            else -> "可导入"
+        }
+
+    val warningMessage: String?
+        get() = if (maybeGarbled) "内容疑似编码异常,请核对原文" else null
+
     /** 是否仍有"待人工确认"的关键字段 */
     val needsReview: Boolean
         get() = category == null || target == null || plainExplanation.isBlank()

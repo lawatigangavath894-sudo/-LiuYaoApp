@@ -95,7 +95,7 @@ interface ChartDao {
 @Dao
 interface CaseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertCase(case: CaseEntity)
+    suspend fun upsertCase(caseEntity: CaseEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertFeedback(feedback: CaseFeedbackEntity)

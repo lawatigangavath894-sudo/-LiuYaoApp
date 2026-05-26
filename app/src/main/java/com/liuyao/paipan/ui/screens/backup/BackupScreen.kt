@@ -1,6 +1,7 @@
 package com.liuyao.paipan.ui.screens.backup
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ fun BackupScreen(
     onBack: () -> Unit,
     onOpenRestore: () -> Unit,
 ) {
+    BackHandler { onBack() }
     val state by vm.ui.collectAsStateWithLifecycle()
 
     // 保存文件:CreateDocument。拿到 Uri 后把预览内容写入。
