@@ -18,16 +18,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
 import com.liuyao.paipan.ui.components.IOSGroupedSection
 import com.liuyao.paipan.ui.components.IOSPrimaryButton
+import com.liuyao.paipan.ui.components.IOSSecondaryButton
 import com.liuyao.paipan.ui.theme.AppTheme
 import com.liuyao.paipan.ui.theme.IOSTextStyles
 import com.liuyao.paipan.ui.theme.Spacing
 
-/**
- * 导入入口页(iOS Form 风)。选择本地 txt / markdown 文件 → 解析 → 跳预览。
- *
- * 文件选择器示例:使用 [ActivityResultContracts.OpenDocument],
- * MIME 限定文本类型;拿到 [Uri] 后交给 [RuleImportViewModel.loadFile] 读取解析。
- */
 @Composable
 fun RuleImportScreen(
     vm: RuleImportViewModel,
@@ -42,11 +37,10 @@ fun RuleImportScreen(
         ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri != null) {
-            // 取文件名
             val name = runCatching {
-                context.contentResolver.query(uri, null, null, null, null)?.use { c ->
-                    val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0 && c.moveToFirst()) c.getString(idx) else null
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
                 }
             }.getOrNull()
             vm.loadFile(uri, name)
@@ -62,11 +56,11 @@ fun RuleImportScreen(
             item {
                 IOSGroupedSection(
                     header = "说明",
-                    footer = "支持 .txt 与 .md。导入后会按标题/空行/编号/项目符号切段,并尝试识别占类与类神;识别不到的字段会标为「待人工确认」,可在预览页修改后再入库。",
+                    footer = "支持 txt / md / csv 等文本资料。会先读取原始 bytes 并识别 UTF-8、GB18030、GBK、GB2312 等编码，进入预览后可手动切换编码。",
                 ) {
                     item {
                         Text(
-                            "半自动导入:先切段、再人工校对,避免资料直接乱入库。",
+                            "导入前必须先预览确认，避免乱码或无关资料直接入库。",
                             style = IOSTextStyles.Body,
                             color = AppTheme.colors.label,
                             modifier = Modifier.padding(Spacing.cardPadding),
@@ -75,8 +69,7 @@ fun RuleImportScreen(
                 }
             }
 
-            val fileName = state.fileName
-            if (fileName != null) {
+            state.fileName?.let { fileName ->
                 item {
                     IOSGroupedSection(header = "已选择") {
                         item {
@@ -89,7 +82,11 @@ fun RuleImportScreen(
                         }
                         item {
                             Text(
-                                if (state.isParsing) "正在解析…" else "已解析出 ${state.drafts.size} 条草稿,其中 ${state.reviewCount} 条待确认。",
+                                if (state.isParsing) {
+                                    "正在解析..."
+                                } else {
+                                    "已按 ${state.encoding ?: "未知编码"} 解析出 ${state.drafts.size} 条草稿，其中 ${state.reviewCount} 条待确认。"
+                                },
                                 style = IOSTextStyles.Footnote,
                                 color = AppTheme.colors.secondaryLabel,
                                 modifier = Modifier.padding(horizontal = Spacing.rowHorizontal).padding(bottom = Spacing.rowVertical),
@@ -99,10 +96,10 @@ fun RuleImportScreen(
                 }
             }
 
-            state.error?.let { err ->
+            state.error?.let { error ->
                 item {
                     Text(
-                        err,
+                        error,
                         style = IOSTextStyles.Footnote,
                         color = AppTheme.colors.clash,
                         modifier = Modifier.padding(horizontal = Spacing.pageHorizontal),
@@ -114,10 +111,10 @@ fun RuleImportScreen(
                 Column(Modifier.padding(horizontal = Spacing.pageHorizontal), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     IOSPrimaryButton(
                         text = "选择文件",
-                        onClick = { picker.launch(arrayOf("text/plain", "text/markdown", "text/*", "*/*")) },
+                        onClick = { picker.launch(arrayOf("text/plain", "text/markdown", "text/csv", "text/*", "*/*")) },
                     )
-                    if (state.drafts.isNotEmpty()) {
-                        com.liuyao.paipan.ui.components.IOSSecondaryButton(
+                    if (state.drafts.isNotEmpty() || state.rawPreview.isNotBlank()) {
+                        IOSSecondaryButton(
                             text = "查看预览(${state.drafts.size})",
                             onClick = onParsed,
                         )

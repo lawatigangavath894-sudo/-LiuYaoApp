@@ -18,26 +18,28 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** 导入完成统计 */
 data class ImportResult(val success: Int, val skipped: Int, val failed: Int)
 
-/** 导入流程状态 */
 data class ImportUiState(
     val fileName: String? = null,
+    val rawBytes: ByteArray? = null,
     val encoding: String? = null,
-    val rawPreview: String = "",        // 原文预览(前若干字)
+    val autoEncoding: String? = null,
+    val encodingOptions: List<String> = emptyList(),
+    val candidateResults: List<ImportedTextReader.DecodedCandidate> = emptyList(),
+    val rawPreview: String = "",
     val drafts: List<DraftRule> = emptyList(),
     val isParsing: Boolean = false,
-    val importResult: ImportResult? = null, // 非空 = 已完成导入
+    val importResult: ImportResult? = null,
     val error: String? = null,
     val encodingWarning: String? = null,
 ) {
     val reviewCount: Int get() = drafts.count { it.needsReview }
     val selectedCount: Int get() = drafts.count { it.selectedForImport }
+    val isPossiblyGarbled: Boolean get() = drafts.any { it.selectedForImport && it.maybeGarbled }
 }
 
 class RuleImportViewModel(app: Application) : AndroidViewModel(app) {
-
     private val repo = LiuYaoRepository(AppDatabase.get(app))
 
     private val _ui = MutableStateFlow(ImportUiState())
@@ -47,76 +49,123 @@ class RuleImportViewModel(app: Application) : AndroidViewModel(app) {
         private const val PREVIEW_CHARS = 3000
     }
 
-    /** 读取并解析选中的文件(编码自动识别) */
     fun loadFile(uri: Uri, displayName: String?) {
         _ui.update { ImportUiState(isParsing = true) }
         viewModelScope.launch {
             try {
-                val outcome = withContext(Dispatchers.IO) {
-                    val bytes = getApplication<Application>().contentResolver
-                        .openInputStream(uri)?.use { it.readBytes() }
-                    ImportedTextReader.read(bytes)
+                val bytes = withContext(Dispatchers.IO) {
+                    getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 }
-                when (outcome) {
+                when (val outcome = ImportedTextReader.read(bytes)) {
                     is ImportedTextReader.ReadOutcome.Failure -> {
                         _ui.update { it.copy(isParsing = false, error = outcome.message) }
                     }
                     is ImportedTextReader.ReadOutcome.Success -> {
-                        val res = outcome.result
-                        val parsed = RuleImportParser.parse(res.text)
-                        if (parsed.isEmpty()) {
-                            _ui.update {
-                                it.copy(
-                                    isParsing = false, fileName = displayName, encoding = res.encoding,
-                                    rawPreview = res.text.take(PREVIEW_CHARS),
-                                    error = "未能从文件中解析出断语条目,请检查文件内容或编码。",
-                                    encodingWarning = res.warning,
-                                )
-                            }
-                            return@launch
-                        }
-                        // 标注疑似乱码(含替换符的条目),并补充文件名/编码
-                        val drafts = parsed.map { d ->
-                            val garbled = d.originalText.contains('\uFFFD')
-                            d.copy(
-                                sourceFileName = displayName ?: "",
-                                detectedEncoding = res.encoding,
-                                maybeGarbled = garbled,
-                                selectedForImport = !garbled, // 乱码条目默认不选
-                            )
-                        }
-                        _ui.update {
-                            it.copy(
-                                isParsing = false, fileName = displayName, encoding = res.encoding,
-                                rawPreview = res.text.take(PREVIEW_CHARS), drafts = drafts,
-                                encodingWarning = res.warning,
-                            )
-                        }
+                        val result = outcome.result
+                        applyDecodedText(
+                            fileName = displayName ?: "未命名文件",
+                            rawBytes = bytes,
+                            selectedEncoding = result.encoding,
+                            autoEncoding = result.encoding,
+                            decodedText = result.text,
+                            warning = result.warning,
+                            candidates = result.candidates,
+                        )
                     }
                 }
             } catch (e: Exception) {
-                _ui.update { it.copy(isParsing = false, error = "读取失败:${e.message ?: "未知错误"}") }
+                _ui.update { it.copy(isParsing = false, error = "读取失败：${e.message ?: "未知错误"}") }
             }
         }
     }
 
+    fun selectEncoding(encoding: String) {
+        val state = _ui.value
+        val bytes = state.rawBytes ?: return
+        _ui.update { it.copy(isParsing = true, error = null) }
+        viewModelScope.launch {
+            val selected = if (encoding == ImportedTextReader.AUTO) {
+                state.candidateResults.maxByOrNull { it.score }
+            } else {
+                withContext(Dispatchers.Default) { ImportedTextReader.decode(bytes, encoding) }
+            } ?: return@launch
+            applyDecodedText(
+                fileName = state.fileName ?: "未命名文件",
+                rawBytes = bytes,
+                selectedEncoding = selected.encoding,
+                autoEncoding = state.autoEncoding ?: selected.encoding,
+                decodedText = selected.text,
+                warning = selected.warning,
+                candidates = state.candidateResults.ifEmpty { listOf(selected) },
+            )
+        }
+    }
+
+    private fun applyDecodedText(
+        fileName: String,
+        rawBytes: ByteArray?,
+        selectedEncoding: String,
+        autoEncoding: String,
+        decodedText: String,
+        warning: String?,
+        candidates: List<ImportedTextReader.DecodedCandidate>,
+    ) {
+        val parsed = RuleImportParser.parse(decodedText)
+        val drafts = parsed.map { draft ->
+            val garbled = looksGarbled(draft.originalText)
+            draft.copy(
+                sourceFileName = fileName,
+                detectedEncoding = selectedEncoding,
+                maybeGarbled = garbled,
+                selectedForImport = !garbled,
+            )
+        }
+        val parseWarning = when {
+            parsed.isEmpty() -> "未能从文件中解析出断语条目，请检查文件内容或切换编码。"
+            warning != null -> warning
+            looksGarbled(decodedText.take(PREVIEW_CHARS)) -> "当前预览可能仍存在乱码，请尝试切换 GB18030 / GBK / UTF-8 编码。"
+            else -> null
+        }
+        _ui.update {
+            it.copy(
+                fileName = fileName,
+                rawBytes = rawBytes,
+                encoding = selectedEncoding,
+                autoEncoding = autoEncoding,
+                encodingOptions = listOf(ImportedTextReader.AUTO) + ImportedTextReader.supportedEncodingNames(),
+                candidateResults = candidates,
+                rawPreview = decodedText.take(PREVIEW_CHARS),
+                drafts = drafts,
+                isParsing = false,
+                importResult = null,
+                error = null,
+                encodingWarning = parseWarning,
+            )
+        }
+    }
+
+    private fun looksGarbled(text: String): Boolean =
+        text.contains('\uFFFD') ||
+            listOf("锟斤拷", "���", "Ã", "Â", "闁", "鐨", "鍙", "绛", "涓").any { text.contains(it) }
+
     fun updateDraft(updated: DraftRule) {
-        _ui.update { st -> st.copy(drafts = st.drafts.map { if (it.id == updated.id) updated else it }) }
+        _ui.update { state -> state.copy(drafts = state.drafts.map { if (it.id == updated.id) updated else it }) }
     }
 
     fun toggleSelected(id: String) {
-        _ui.update { st -> st.copy(drafts = st.drafts.map { if (it.id == id) it.copy(selectedForImport = !it.selectedForImport) else it }) }
+        _ui.update { state ->
+            state.copy(drafts = state.drafts.map { if (it.id == id) it.copy(selectedForImport = !it.selectedForImport) else it })
+        }
     }
 
     fun selectAll(selected: Boolean) {
-        _ui.update { st -> st.copy(drafts = st.drafts.map { it.copy(selectedForImport = selected) }) }
+        _ui.update { state -> state.copy(drafts = state.drafts.map { it.copy(selectedForImport = selected) }) }
     }
 
     fun removeDraft(id: String) {
-        _ui.update { st -> st.copy(drafts = st.drafts.filterNot { it.id == id }) }
+        _ui.update { state -> state.copy(drafts = state.drafts.filterNot { it.id == id }) }
     }
 
-    /** 确认导入:只写入选中的条目,统计成功/跳过/失败 */
     fun confirmImport(onDone: () -> Unit = {}) {
         viewModelScope.launch {
             val all = _ui.value.drafts
@@ -124,10 +173,11 @@ class RuleImportViewModel(app: Application) : AndroidViewModel(app) {
             val skipped = all.size - selected.size
             var success = 0
             var failed = 0
-            val source = RuleSourceEntity("src-import", "导入", "刘昌明《象断六爻》", null)
-            selected.forEachIndexed { i, d ->
+            val sourceName = _ui.value.fileName ?: "导入文件"
+            val source = RuleSourceEntity("src-import", "导入", sourceName, null)
+            selected.forEachIndexed { index, draft ->
                 try {
-                    repo.saveRule(d.toRule(), source = if (i == 0) source else null)
+                    repo.saveRule(draft.toRule(), source = if (index == 0) source else null)
                     success++
                 } catch (e: Exception) {
                     failed++
