@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.liuyao.paipan.ui.components.IOSDetailScaffold
+import com.liuyao.paipan.ui.screens.chart.AnalysisLockCard
 import com.liuyao.paipan.ui.screens.chart.AnalysisTabs
 import com.liuyao.paipan.ui.screens.chart.ChartAnalysisViewModel
 import com.liuyao.paipan.ui.screens.chart.ChartUiMapper
@@ -63,6 +64,7 @@ fun ChartScreen(
             ) {
                 item { TimeInfoCard(ui) }
                 item { HexagramInfoCard(ui) }
+                item { AnalysisLockCard(analysisState.analysisLock, analysisState.knowledgeMessage) }
                 item { HexagramPlate(ui) }
                 item {
                     AnalysisTabs(

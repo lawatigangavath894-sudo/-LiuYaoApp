@@ -13,3 +13,6 @@
 # 误打包的嵌套副本(不应入库)
 /LiuYao/
 *.zip
+
+# Local source PDFs/OCR working files are kept outside the APK source tree.
+/materials/

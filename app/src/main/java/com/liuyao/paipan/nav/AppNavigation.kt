@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -102,8 +103,14 @@ fun AppNavigation(nav: NavHostController = rememberNavController()) {
                     defaultValue = ""
                 }),
             ) { entry ->
+                val chartVm: com.liuyao.paipan.ui.screens.chart.ChartViewModel =
+                    androidx.lifecycle.viewmodel.compose.viewModel(
+                        viewModelStoreOwner = nav.getBackStackEntry(Route.Home.route),
+                    )
+                val chartState by chartVm.ui.collectAsStateWithLifecycle()
                 AiChatScreen(
                     chartId = entry.arguments?.getString("chartId")?.takeIf { it.isNotBlank() },
+                    currentChart = chartState.chart,
                     onBack = { nav.safeBack(Route.Home.route) },
                     onOpenSettings = { nav.navigate(Route.AiSettings.route) },
                 )

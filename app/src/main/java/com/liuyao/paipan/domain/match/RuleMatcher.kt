@@ -1,5 +1,8 @@
-package com.liuyao.paipan.domain.match
+﻿package com.liuyao.paipan.domain.match
 
+import com.liuyao.paipan.domain.analysis.AnalysisLock
+import com.liuyao.paipan.domain.analysis.MatchLayer
+import com.liuyao.paipan.domain.analysis.displayName
 import com.liuyao.paipan.domain.model.DivinationCategory
 import com.liuyao.paipan.domain.model.LiuYaoChart
 import com.liuyao.paipan.domain.rule.DivinationRule
@@ -37,14 +40,16 @@ object RuleMatcher {
          * 使误判多的规则排序靠后(但不删除)。
          */
         reliabilityProvider: (String) -> Double = { 1.0 },
+        lock: AnalysisLock? = null,
     ): MatchReport {
-        val usefulGod = UsefulGodResolver.primary(category)
+        val usefulGod = lock?.primaryUsefulGod?.let { UsefulGod.Kin(it) } ?: UsefulGodResolver.primary(category)
         val evaluator = RuleConditionEvaluator(chart, usefulGod)
 
         val results = rules
             .filter { categoryMatches(it, category) }       // 原则 1
-            .filter { targetMatches(it, category) }          // 原则 2
-            .map { rule -> evaluateRule(rule, evaluator) }
+            .filter { targetMatches(it, category, lock) }          // 原则 2
+            .filter { lock == null || withinLockScope(it, lock) }
+            .map { rule -> enrich(evaluateRule(rule, evaluator), lock) }
             .filter { it.matched }                           // 仅保留命中(未命中/被排除不进结果)
 
         // 排序键:基础键 × 可靠度乘子。reliability 低者排序靠后,但仍保留。
@@ -140,4 +145,73 @@ object RuleMatcher {
             RuleTarget.Type.SPECIFIC_KIN -> godKin != null && t.kin == godKin
         }
     }
+
+    private fun targetMatches(rule: DivinationRule, category: DivinationCategory, lock: AnalysisLock?): Boolean {
+        if (lock == null) return targetMatches(rule, category)
+        val target = rule.target
+        val primary = lock.primaryUsefulGod
+        val secondary = lock.secondaryUsefulGods.toSet()
+        return when (target.type) {
+            RuleTarget.Type.USE_GOD,
+            RuleTarget.Type.WORLD,
+            RuleTarget.Type.RESPONSE,
+            RuleTarget.Type.WHOLE_CHART,
+            -> true
+            RuleTarget.Type.SPECIFIC_POSITION -> target.position in lock.keyLineIndexes
+            RuleTarget.Type.SPECIFIC_KIN -> target.kin == primary || target.kin in secondary
+        }
+    }
+
+    private fun withinLockScope(rule: DivinationRule, lock: AnalysisLock): Boolean {
+        val haystack = listOf(
+            rule.originalText,
+            rule.plainExplanation,
+            rule.conditionText,
+            rule.tags.joinToString(" "),
+            rule.target.kin?.displayName().orEmpty(),
+        ).joinToString(" ")
+        if (lock.focusKeywords.any { haystack.contains(it) }) return true
+        if (lock.primaryUsefulGod != null && haystack.contains(lock.primaryUsefulGod.displayName())) return true
+        if (rule.target.type == RuleTarget.Type.USE_GOD || rule.target.type == RuleTarget.Type.WORLD) return true
+        return rule.category == lock.category
+    }
+
+    private fun enrich(result: RuleMatchResult, lock: AnalysisLock?): RuleMatchResult {
+        if (lock == null) return result
+        val text = listOf(result.rule.originalText, result.rule.plainExplanation, result.rule.conditionText).joinToString(" ")
+        val layer = classifyLayer(result, lock, text)
+        val sourceIds = lock.knowledgeSnippets
+            .filter { snippet -> snippet.matchedKeywords.any { text.contains(it) } }
+            .map { it.id }
+            .take(3)
+        return result.copy(
+            matchLayer = layer,
+            lockReason = when (layer) {
+                MatchLayer.MAIN_RESULT -> "命中占类、主变量或主用神，属于主结果判断。"
+                MatchLayer.PROCESS -> "命中动爻、世应或关键爻，属于过程条件。"
+                MatchLayer.CONDITION -> "命中空亡、月破、日冲、生克合冲等状态条件。"
+                MatchLayer.SIDE_REFERENCE -> "与当前锁定结果有关，但不是主判断依据。"
+            },
+            sourceSnippetIds = sourceIds,
+            sourceOriginalText = lock.knowledgeSnippets.firstOrNull { it.id in sourceIds }?.originalText,
+            relatedUsefulGod = lock.primaryUsefulGod,
+            relatedLineIndex = result.relatedLineIndexes.firstOrNull { it in lock.keyLineIndexes },
+        )
+    }
+
+    private fun classifyLayer(result: RuleMatchResult, lock: AnalysisLock, text: String): MatchLayer {
+        val primaryName = lock.primaryUsefulGod?.displayName()
+        val mainHit = lock.focusKeywords.any { text.contains(it) } ||
+            (primaryName != null && text.contains(primaryName)) ||
+            result.rule.target.kin == lock.primaryUsefulGod
+        if (mainHit) return MatchLayer.MAIN_RESULT
+        if (result.relatedLineIndexes.any { it in lock.keyLineIndexes } ||
+            text.contains("动爻") || text.contains("世") || text.contains("应")
+        ) return MatchLayer.PROCESS
+        if (listOf("空", "旬空", "月破", "日冲", "合", "冲", "刑", "害", "生", "克").any { text.contains(it) }) {
+            return MatchLayer.CONDITION
+        }
+        return MatchLayer.SIDE_REFERENCE
+    }
 }
+

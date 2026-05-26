@@ -160,21 +160,21 @@ private fun RuleContent(
     }
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap)) {
         RuleMatchSummaryCard(report)
-        RuleMatchSection(
-            bucket = com.liuyao.paipan.domain.match.ResultBucket.SUPPORT_YES,
-            results = report.supportYes,
+        RuleLayerSection(
+            layer = com.liuyao.paipan.domain.analysis.MatchLayer.MAIN_RESULT,
+            results = report.mainResult,
             favoriteIds = favoriteIds,
             onToggleFavorite = onToggleFavorite,
         )
-        RuleMatchSection(
-            bucket = com.liuyao.paipan.domain.match.ResultBucket.SUPPORT_NO,
-            results = report.supportNo,
+        RuleLayerSection(
+            layer = com.liuyao.paipan.domain.analysis.MatchLayer.PROCESS,
+            results = report.processOrCondition,
             favoriteIds = favoriteIds,
             onToggleFavorite = onToggleFavorite,
         )
-        RuleMatchSection(
-            bucket = com.liuyao.paipan.domain.match.ResultBucket.NEUTRAL,
-            results = report.neutral,
+        RuleLayerSection(
+            layer = com.liuyao.paipan.domain.analysis.MatchLayer.SIDE_REFERENCE,
+            results = report.sideReference,
             favoriteIds = favoriteIds,
             onToggleFavorite = onToggleFavorite,
         )

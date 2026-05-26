@@ -5,8 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.liuyao.paipan.data.db.AppDatabase
 import com.liuyao.paipan.data.db.LiuYaoRepository
+import com.liuyao.paipan.data.knowledge.LiuYaoKnowledgeSearchService
+import com.liuyao.paipan.domain.analysis.AnalysisLock
+import com.liuyao.paipan.domain.analysis.AnalysisLockResolver
 import com.liuyao.paipan.domain.match.MatchReport
-import com.liuyao.paipan.domain.match.MockMatchResults
 import com.liuyao.paipan.domain.match.RuleMatcher
 import com.liuyao.paipan.domain.model.DivinationCategory
 import com.liuyao.paipan.domain.model.LiuYaoChart
@@ -22,14 +24,16 @@ import kotlinx.coroutines.launch
  */
 data class AnalysisUiState(
     val report: MatchReport? = null,
+    val analysisLock: AnalysisLock? = null,
     val isLoading: Boolean = false,
     val favoriteRuleIds: Set<String> = emptySet(),
-    val usingMock: Boolean = false,
+    val knowledgeMessage: String? = null,
 )
 
 class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = LiuYaoRepository(AppDatabase.get(app))
+    private val knowledgeSearch = LiuYaoKnowledgeSearchService(app.applicationContext)
 
     private val _ui = MutableStateFlow(AnalysisUiState())
     val ui: StateFlow<AnalysisUiState> = _ui.asStateFlow()
@@ -46,18 +50,43 @@ class ChartAnalysisViewModel(app: Application) : AndroidViewModel(app) {
         _ui.update { it.copy(isLoading = true) }
         viewModelScope.launch {
             val rules = repo.loadAllRules()
+            val mainVariable = com.liuyao.paipan.domain.analysis.QuestionFocusResolver.resolve(chart.question)
+            val snippets = knowledgeSearch.searchRelevantSnippets(
+                category = category,
+                question = chart.question,
+                chart = chart,
+                rules = rules,
+                extraKeywords = com.liuyao.paipan.domain.analysis.QuestionFocusResolver.resultKeywords(mainVariable),
+                limit = 10,
+            )
+            val lock = AnalysisLockResolver.resolve(chart, category, snippets)
             val report = if (rules.isEmpty()) {
-                MockMatchResults.report
+                MatchReport(emptyList(), emptyList(), emptyList())
             } else {
                 val relMap = repo.reliabilityMap()
-                val r = RuleMatcher.match(chart, category, rules) { ruleId -> relMap[ruleId] ?: 1.0 }
+                val r = RuleMatcher.match(
+                    chart = chart,
+                    category = category,
+                    rules = rules,
+                    reliabilityProvider = { ruleId -> relMap[ruleId] ?: 1.0 },
+                    lock = lock,
+                )
                 // 记录命中规则"被使用一次"(供使用次数/最近使用时间统计)
                 val now = System.currentTimeMillis() / 1000
                 r.all.forEach { repo.markRuleUsed(it.rule.id, now) }
                 r
             }
             _ui.update {
-                it.copy(report = report, isLoading = false, usingMock = rules.isEmpty())
+                it.copy(
+                    report = report,
+                    analysisLock = lock,
+                    isLoading = false,
+                    knowledgeMessage = when {
+                        snippets.isEmpty() -> "未检索到刘昌明资料片段。"
+                        rules.isEmpty() -> "断语库为空，仅生成分析锁定与资料片段。"
+                        else -> null
+                    },
+                )
             }
         }
     }

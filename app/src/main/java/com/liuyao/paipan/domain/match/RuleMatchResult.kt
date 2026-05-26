@@ -1,5 +1,7 @@
 package com.liuyao.paipan.domain.match
 
+import com.liuyao.paipan.domain.analysis.MatchLayer
+import com.liuyao.paipan.domain.model.SixKin
 import com.liuyao.paipan.domain.rule.DivinationRule
 import com.liuyao.paipan.domain.rule.RuleCondition
 import com.liuyao.paipan.domain.rule.RulePolarity
@@ -28,6 +30,13 @@ data class RuleMatchResult(
     val excludedByConditions: List<RuleCondition>,
     val explanation: String,
     val relatedLineIndexes: List<Int>,
+    val matchLayer: MatchLayer = MatchLayer.SIDE_REFERENCE,
+    val lockReason: String = "",
+    val sourceSnippetIds: List<String> = emptyList(),
+    val sourceOriginalText: String? = null,
+    val relatedUsefulGod: SixKin? = null,
+    val relatedLineIndex: Int? = null,
+    val excludeReason: String? = null,
 ) {
     /** 归类:支持成 / 支持不成 / 中性提示 */
     val bucket: ResultBucket
@@ -56,4 +65,8 @@ data class MatchReport(
 ) {
     val all: List<RuleMatchResult> get() = supportYes + supportNo + neutral
     val hasConflict: Boolean get() = supportYes.isNotEmpty() && supportNo.isNotEmpty()
+    val mainResult: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.MAIN_RESULT }
+    val processOrCondition: List<RuleMatchResult>
+        get() = all.filter { it.matchLayer == MatchLayer.PROCESS || it.matchLayer == MatchLayer.CONDITION }
+    val sideReference: List<RuleMatchResult> get() = all.filter { it.matchLayer == MatchLayer.SIDE_REFERENCE }
 }
